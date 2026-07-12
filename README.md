@@ -68,5 +68,3 @@ pages/api/      routes API (accès MySQL)
 sql/schema.sql  schéma + données de démonstration
 styles/         feuille Tailwind globale
 ```
-
-Aucune authentification n'est mise en place, conformément au cahier des charges.
