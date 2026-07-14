@@ -24,6 +24,10 @@ function sum(rows, field) {
   return rows.reduce((s, r) => s + (Number(r[field]) || 0), 0);
 }
 
+function dateKey(d) {
+  return d instanceof Date ? d.toLocaleDateString("fr-CA") : String(d).slice(0, 10);
+}
+
 export default async function handler(req, res) {
   if (req.method !== "GET") {
     res.status(405).json({ error: "Méthode non autorisée" });
@@ -67,13 +71,22 @@ export default async function handler(req, res) {
       .map(([name, valeur]) => ({ name, valeur }));
 
     const tempsRows = await query(
-      "SELECT ouverture, planifie, arret, changement, rupture, autre, gammes FROM cause_temps WHERE sheet_id = ? AND date_jour BETWEEN ? AND ?",
+      "SELECT date_jour, ouverture, planifie, arret, changement, rupture, autre, gammes FROM cause_temps WHERE sheet_id = ? AND date_jour BETWEEN ? AND ?",
       [sheetId, first, last]
     );
     const kpiRows = await query(
-      "SELECT kpi_key, data FROM kpi_daily_params WHERE sheet_id = ? AND date_jour BETWEEN ? AND ? AND kpi_key IN ('C','Q')",
+      "SELECT kpi_key, date_jour, data FROM kpi_daily_params WHERE sheet_id = ? AND date_jour BETWEEN ? AND ? AND kpi_key IN ('C','Q')",
       [sheetId, first, last]
     );
+
+    const kpiByDateC = {};
+    const kpiByDateQ = {};
+    kpiRows.forEach((r) => {
+      const key = dateKey(r.date_jour);
+      const data = typeof r.data === "string" ? JSON.parse(r.data) : r.data;
+      if (r.kpi_key === "C") kpiByDateC[key] = data;
+      if (r.kpi_key === "Q") kpiByDateQ[key] = data;
+    });
 
     const sumTemps = {
       ouverture: sum(tempsRows, "ouverture"),
@@ -82,19 +95,39 @@ export default async function handler(req, res) {
       changement: sum(tempsRows, "changement"),
       rupture: sum(tempsRows, "rupture"),
       autre: sum(tempsRows, "autre"),
-      gammes: tempsRows.length ? Number(tempsRows[tempsRows.length - 1].gammes) || 0 : 0,
     };
 
-    const qtyProduiteVals = kpiRows
-      .filter((r) => r.kpi_key === "C")
-      .map((r) => Number((typeof r.data === "string" ? JSON.parse(r.data) : r.data).quantiteProduite) || 0);
-    const rebutVals = kpiRows
-      .filter((r) => r.kpi_key === "Q")
-      .map((r) => Number((typeof r.data === "string" ? JSON.parse(r.data) : r.data).rebuts) || 0);
-    const sumQtyProduite = qtyProduiteVals.reduce((a, b) => a + b, 0);
-    const sumRebut = rebutVals.reduce((a, b) => a + b, 0);
+    let sumTempsUtileMin = 0;
+    let sumTempsNonQualiteMin = 0;
+    tempsRows.forEach((row) => {
+      const key = dateKey(row.date_jour);
+      const qtyProduite = Number(kpiByDateC[key]?.quantiteProduite) || 0;
+      const qtyRebut = Number(kpiByDateQ[key]?.rebuts) || 0;
+      const gammes = Number(row.gammes) || 0;
+      sumTempsUtileMin += gammes * qtyProduite;
+      sumTempsNonQualiteMin += gammes * qtyRebut;
+    });
 
-    const chain = computeTempsChain(sumTemps, sumQtyProduite, sumRebut);
+    const tempsRequisMin = sumTemps.ouverture - sumTemps.planifie;
+    const tempsFonctionnementMin =
+      tempsRequisMin - (sumTemps.arret + sumTemps.changement + sumTemps.rupture + sumTemps.autre);
+    const tempsNetMin = sumTempsUtileMin + sumTempsNonQualiteMin;
+    const tempsRalentissementMin = tempsFonctionnementMin - tempsNetMin;
+
+    const toH = (min) => Math.round((min / 60) * 100) / 100;
+
+    const chain = {
+      tempsRequisH: toH(tempsRequisMin),
+      tempsFonctionnementH: toH(tempsFonctionnementMin),
+      tempsUtileH: toH(sumTempsUtileMin),
+      tempsNonQualiteH: toH(sumTempsNonQualiteMin),
+      tempsNetH: toH(tempsNetMin),
+      tempsRalentissementH: toH(tempsRalentissementMin),
+      arret: toH(sumTemps.arret),
+      changement: toH(sumTemps.changement),
+      rupture: toH(sumTemps.rupture),
+    };
+
     const tempsCout = [
       { name: "Arrêt\nmachine", valeur: chain.arret },
       { name: "Changement\nsérie", valeur: chain.changement },

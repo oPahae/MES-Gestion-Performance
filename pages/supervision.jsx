@@ -27,6 +27,7 @@ import {
 import { apiGet } from "../lib/apiClient";
 import { addDaysIso, todayIso, fmtFR, fmtWeekLabel, getMondayIso, computeTrailingWeeks, fmtWeekLabelShort } from "../lib/dateUtils";
 import { KPI_ORDER, KPI_INFO, STATUS_COLORS, STATUS_LEGEND, PLACE_COORDS, getRingConfig, KPI_TREND_FIELDS } from "../lib/kpiLogic";
+import { verifyAuth } from "../middlewares/auth";
 
 function polarToCartesian(cx, cy, r, angleDeg) {
   const a = ((angleDeg - 90) * Math.PI) / 180;
@@ -45,11 +46,11 @@ function formatCellText(value, type) {
 
 function MultiRingGauge({ kpiKey, ringConfig, weeks, todayWeekIndex, selectedWeekIndex, isActive, onClick }) {
   const info = KPI_INFO[kpiKey];
-  const size = 105;
+  const size = 130;
   const cx = size / 2;
   const cy = size / 2;
-  const baseR = 23;
-  const ringWidth = 8;
+  const baseR = 20;
+  const ringWidth = 14;
   const ringGap = 1;
   const segments = Math.max(weeks.length, 1);
   const gapDeg = segments > 20 ? 1.2 : 3.5;
@@ -270,7 +271,7 @@ function KpiTrendMini({ kpiKey, data }) {
   );
 }
 
-export default function SupervisionPage() {
+export default function SupervisionPage({ session }) {
   const router = useRouter();
   const { sheet: sheetCode } = router.query;
 
@@ -412,18 +413,18 @@ export default function SupervisionPage() {
           </nav>
         </div>
         <div className="px-1.5 pb-2">
-          <div className="px-1 pt-1.5 pb-1 text-[6px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
-          <button className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5">
-            <FaCog className="text-[7px]" />
-            Postes
-          </button>
-          <button className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5">
-            <FaUsers className="text-[7px]" />
-            Utilisateurs
-          </button>
-          <Link href="/" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-red-400 hover:bg-white/5 mt-1">
+          {session.isAdmin &&
+            <>
+              <div className="px-1 pt-1.5 pb-1 text-[6px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
+              <Link href="/settings" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5">
+                <FaCog className="text-[7px]" />
+                Paramètres
+              </Link>
+            </>
+          }
+          <Link href="/api/auth/logout" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-red-400 hover:bg-white/5 mt-1">
             <FaSignOutAlt className="text-[7px]" />
-            QUITTER
+            LOGOUT
           </Link>
         </div>
       </aside>
@@ -467,7 +468,7 @@ export default function SupervisionPage() {
             </div>
             <div className="flex items-center gap-2">
               <span className="text-[6px] text-gray-400">Aujourd&apos;hui : {fmtFR(today)}</span>
-              <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[6px] font-bold">A</div>
+              <div className="w-4 h-4 rounded-full bg-blue-600 text-white flex items-center justify-center text-[6px] font-bold">{session.nom.slice(0, 1).toUpperCase()}</div>
             </div>
           </div>
         </header>
@@ -629,7 +630,7 @@ export default function SupervisionPage() {
                     onClick={() => setViewedNotification(n)}
                     className={`text-left px-1.5 py-1 rounded-md text-[6px] ${!n.lu ? "bg-blue-50" : "bg-gray-50"}`}
                   >
-                    <div className="text-gray-400 text-[5px]">{fmtFR(n.date_jour)}</div>
+                    <div className="text-gray-400 text-[5px]">{new Date(n.date_jour).toLocaleDateString('FR-fr')}</div>
                     <div className="text-gray-700">{n.texte}</div>
                     {n.hasImage && <span className="text-blue-500 font-semibold text-[5px]">Voir l&apos;image</span>}
                   </button>
@@ -687,14 +688,14 @@ export default function SupervisionPage() {
         <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50" onClick={() => setViewedNotification(null)}>
           <div className="bg-white rounded-lg p-2 max-w-xs" onClick={(e) => e.stopPropagation()}>
             <div className="flex items-center justify-between mb-1">
-              <span className="text-[6px] font-bold text-gray-700">{fmtFR(viewedNotification.date_jour)}</span>
+              <span className="text-[6px] font-bold text-gray-700">{new Date(viewedNotification.date_jour).toLocaleDateString('FR-fr')}</span>
               <button onClick={() => setViewedNotification(null)} className="text-gray-400">
                 <FaTimes />
               </button>
             </div>
             <p className="text-[6px] text-gray-600 mb-1">{viewedNotification.texte}</p>
             {viewedNotification.hasImage ? (
-              <img src={`/api/notifications/${viewedNotification.id}/image`} alt="notification" className="max-w-full rounded-md" />
+              <img src={`/api/notifications/${viewedNotification.id}`} alt="notification" className="max-w-full rounded-md" />
             ) : (
               <p className="text-[5px] text-gray-300">Aucune image</p>
             )}
@@ -703,4 +704,24 @@ export default function SupervisionPage() {
       )}
     </div>
   );
+}
+
+export async function getServerSideProps({ req, res }) {
+  const user = verifyAuth(req, res);
+  if (!user) {
+    return {
+      redirect: {
+        destination: "/login",
+        permanent: false,
+      },
+    };
+  }
+  return {
+    props: {
+      session: {
+        nom: user.nom,
+        isAdmin: user.role === "admin",
+      }
+    }
+  };
 }
