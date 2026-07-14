@@ -926,10 +926,8 @@ export default function DashboardPage({ session }) {
     <div className="w-screen h-screen overflow-hidden flex bg-[#EEF1F6] text-[6px]">
       <aside className="w-[105px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
-          <Link href="/" className="flex items-center gap-1 px-2.5 py-2.5 border-b border-white/10">
-            <div className="w-4 h-4 rounded-md bg-white/10 flex items-center justify-center">
-              <FaCogs className="text-white text-[7px]" />
-            </div>
+          <Link href="/" className="flex flex-col items-center gap-1 px-2.5 py-2.5 border-b border-white/10">
+            <img src="/banner.png" className="w-full" />
             <span className="font-bold tracking-wide text-[8px]">
               MES <span className="font-extrabold">PERFORMANCE</span>
             </span>

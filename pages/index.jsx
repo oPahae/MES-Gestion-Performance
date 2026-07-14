@@ -70,9 +70,7 @@ export default function Home({ isAdmin }) {
     <div className="min-h-screen w-full bg-[#0B1526] flex flex-col noscroll">
       <header className="flex justify-between items-center gap-3 px-8 pt-6">
         <div className="flex gap-2 justify-center items-center">
-          <div className="w-10 h-10 rounded-lg bg-white/10 flex items-center justify-center">
-            <FaCogs className="text-white text-lg" />
-          </div>
+          <img src="/logo.png" className="w-12 h-12 rounded-sm" />
           <span className="text-white font-bold tracking-wide text-xl">
             MES <span className="font-extrabold text-blue-400">PERFORMANCE</span>
           </span>

@@ -19,6 +19,7 @@ import {
   FaExclamationCircle,
   FaFileExcel,
   FaUpload,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/apiClient";
 import { verifyAuth } from "../middlewares/auth";
@@ -152,10 +153,8 @@ export default function SettingsPage() {
 
 <aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
-          <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-            <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center">
-              <FaCogs className="text-white text-sm" />
-            </div>
+          <Link href="/" className="flex flex-col items-center gap-2 px-5 py-5 border-b border-white/10">
+            <img src="/banner.png" className="w-full" />
             <span className="font-bold tracking-wide text-base">
               MES <span className="font-extrabold">PERFORMANCE</span>
             </span>
@@ -872,6 +871,9 @@ function ImportExportTab({ allSheets, notify, accent }) {
   const [uploading, setUploading] = useState(false);
   const [file, setFile] = useState(null);
   const [importErrors, setImportErrors] = useState([]);
+  const [resetting, setResetting] = useState(false);
+  const [confirmText, setConfirmText] = useState("");
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
 
   useEffect(() => {
     setSelectedIds(allSheets.map((s) => s.id));
@@ -960,6 +962,24 @@ function ImportExportTab({ allSheets, notify, accent }) {
     }
   }
 
+  async function handleReset() {
+    if (confirmText !== "RÉINITIALISER") {
+      notify("Veuillez taper exactement RÉINITIALISER pour confirmer.", "error");
+      return;
+    }
+    setResetting(true);
+    try {
+      await apiPost("/api/resetData", {});
+      notify("Toutes les données de performance ont été réinitialisées.");
+      setShowResetConfirm(false);
+      setConfirmText("");
+    } catch (err) {
+      notify(err.message || "Erreur lors de la réinitialisation.", "error");
+    } finally {
+      setResetting(false);
+    }
+  }
+
   return (
     <div className="flex flex-col gap-4">
       <SectionCard accent={accent} title="Export Excel">
@@ -1023,6 +1043,52 @@ function ImportExportTab({ allSheets, notify, accent }) {
                 <li key={i}>{e}</li>
               ))}
             </ul>
+          </div>
+        )}
+      </SectionCard>
+
+      <SectionCard accent="#E53935" title="Zone de danger">
+        <p className="text-xs text-gray-400 mb-3">
+          Cette action supprime définitivement toutes les données de performance (paramètres KPI, causes,
+          temps, actions, tickets et notifications) pour toutes les feuilles. Les feuilles, postes, listes
+          déroulantes et comptes utilisateurs sont conservés. Cette action est irréversible.
+        </p>
+        {!showResetConfirm ? (
+          <button
+            onClick={() => setShowResetConfirm(true)}
+            className="flex items-center gap-2 bg-red-50 hover:bg-red-100 text-red-600 text-sm font-semibold px-4 py-2 rounded-lg border border-red-200 transition-all duration-200 active:scale-95 w-fit"
+          >
+            <FaExclamationTriangle className="text-xs" /> Réinitialiser toutes les données
+          </button>
+        ) : (
+          <div className="border border-red-200 bg-red-50/60 rounded-xl p-4 flex flex-col gap-3 max-w-md animate-fadein">
+            <p className="text-xs text-red-600 font-semibold">
+              Pour confirmer, tapez <span className="font-mono bg-white px-1.5 py-0.5 rounded border border-red-200">RÉINITIALISER</span> ci-dessous :
+            </p>
+            <TextInput
+              value={confirmText}
+              onChange={(e) => setConfirmText(e.target.value)}
+              placeholder="RÉINITIALISER"
+              className="border-red-200 focus:border-red-400 focus:ring-red-100"
+            />
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleReset}
+                disabled={resetting || confirmText !== "RÉINITIALISER"}
+                className="flex items-center gap-2 bg-red-600 hover:bg-red-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:active:scale-100"
+              >
+                <FaExclamationTriangle className="text-xs" /> {resetting ? "Réinitialisation..." : "Confirmer la réinitialisation"}
+              </button>
+              <button
+                onClick={() => {
+                  setShowResetConfirm(false);
+                  setConfirmText("");
+                }}
+                className="text-xs text-gray-500 font-semibold px-3 py-2 hover:text-gray-700"
+              >
+                Annuler
+              </button>
+            </div>
           </div>
         )}
       </SectionCard>

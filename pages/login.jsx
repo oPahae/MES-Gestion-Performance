@@ -79,6 +79,10 @@ export default function LoginPage() {
             <FaSignInAlt />
             {loading ? "Connexion..." : "Se connecter"}
           </button>
+
+          <span className="text-center text-xs text-stone-500">Réalisé dans le cadre de l'Université Internationale Centrale</span>
+
+          <img src="/banner.png" className="w-full" />
         </form>
       </div>
     </div>

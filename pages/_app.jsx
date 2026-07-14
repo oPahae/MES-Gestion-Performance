@@ -1,4 +1,5 @@
 import { useState } from "react";
+import Head from 'next/head';
 import "../styles/globals.css";
 
 export default function App({ Component, pageProps }) {
@@ -16,6 +17,10 @@ export default function App({ Component, pageProps }) {
 
   return (
     <>
+      <Head>
+        <link rel="icon" href="/logo.png" />
+      </Head>
+
       {false && (
         <div className="fixed inset-0 bg-black/70 flex items-center justify-center z-50">
           <div className="bg-white rounded-xl p-6 w-96 text-center">
