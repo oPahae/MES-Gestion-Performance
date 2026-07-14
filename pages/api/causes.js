@@ -32,7 +32,7 @@ async function loadSelections(sheetId, date) {
 
 async function loadTemps(sheetId, date) {
   const rows = await query(
-    "SELECT FLOOR(ouverture / 60) AS ouverture, planifie, arret, changement, rupture, autre, gammes FROM cause_temps WHERE sheet_id = ? AND date_jour = ?",
+    "SELECT ROUND(ouverture / 60, 2) as ouverture, planifie, arret, changement, rupture, autre, gammes FROM cause_temps WHERE sheet_id = ? AND date_jour = ?",
     [sheetId, date]
   );
   return rows.length ? rows[0] : { ouverture:0, planifie:0, arret:0, changement:0, rupture:0, autre:0, gammes:0 };
