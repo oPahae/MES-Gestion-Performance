@@ -1409,11 +1409,11 @@ export default function DashboardPage({ session }) {
                           <TimeResult label="Temps net" hours={toH(tempsNetMin)} />
                           <TimeResult label="Temps de ralentissement" hours={toH(tempsRalentissementMin)} />
                         </div>
-                        {tempsRalentissementMin < 0 &&
+                        /* {tempsRalentissementMin < 0 &&
                           <div className="w-full flex justify-center items-center gap-1 text-red-500 font-bold mt-2">
                             <FaExclamationTriangle size={8} className="-translate-y-[1px]" />Impossible de produire cette quantité dans ce temps de fonctionnement
                           </div>
-                        }
+                        } */
                       </div>
                     )}
 
