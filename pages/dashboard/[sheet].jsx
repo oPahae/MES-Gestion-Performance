@@ -390,18 +390,6 @@ function SearchDropdown({ label, options, selected, onToggleOption, allowAdd, on
   const [adding, setAdding] = useState(false);
   const [newText, setNewText] = useState("");
   const [newExtra, setNewExtra] = useState(addExtra && addExtra.options.length ? addExtra.options[0] : "");
-  const containerRef = useRef(null);
-
-  // Ferme le menu automatiquement au clic n'importe où en dehors du composant
-  useEffect(() => {
-    function handleClickOutside(e) {
-      if (containerRef.current && !containerRef.current.contains(e.target)) {
-        setOpen(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
-  }, []);
 
   const filtered = options.filter((o) => o.toLowerCase().includes(search.toLowerCase()));
 
@@ -414,7 +402,7 @@ function SearchDropdown({ label, options, selected, onToggleOption, allowAdd, on
   }
 
   return (
-    <div className="relative" ref={containerRef}>
+    <div className="relative">
       <div onClick={() => setOpen((o) => !o)} className="border border-gray-200 rounded-lg p-1 flex items-start justify-between min-h-[32px] cursor-pointer">
         <div className="flex flex-wrap gap-1">
           {selected.length === 0 && <span className="text-[6px] text-gray-300 mt-0.5">Aucune sélection...</span>}
@@ -568,10 +556,6 @@ function MiniPareto({ data, barColor, lineColor }) {
 
 const DEFAULT_TEMPS = { ouverture: 8, planifie: 30, arret: 20, changement: 15, rupture: 10, autre: 0, gammes: 5 };
 const DEFAULT_SELECTIONS = { place: [], risque: [], defaut: [], absence: [] };
-const DEFAULT_QUANTITIES = { risque: {}, defaut: {}, absence: {} };
-// Champ représentant la "quantité totale produite" pour chaque KPI concerné.
-// Ces trois champs doivent rester synchronisés entre eux.
-const QUANTITE_TOTALE_FIELD = { Q: "quantiteTotale", C: "quantiteProduite", D: "quantiteProduite" };
 
 export default function DashboardPage({ session }) {
   const router = useRouter();
@@ -689,13 +673,8 @@ export default function DashboardPage({ session }) {
 
   const currentSelections = (causesData && causesData.selections) || DEFAULT_SELECTIONS;
   const dictionary = (causesData && causesData.dictionary) || { risque: [], defaut: [], absence: [] };
-  const currentQuantities = (causesData && causesData.quantities) || DEFAULT_QUANTITIES;
-  const absenceQuantities = currentQuantities.absence || {};
-  const risqueQuantities = currentQuantities.risque || {};
-  const defautQuantities = currentQuantities.defaut || {};
+  const absenceQuantities = (causesData && causesData.absenceQuantities) || {};
   const absenceSum = currentSelections.absence.reduce((s, v) => s + (Number(absenceQuantities[v]) || 0), 0);
-  const risqueSum = currentSelections.risque.reduce((s, v) => s + (Number(risqueQuantities[v]) || 0), 0);
-  const defautSum = currentSelections.defaut.reduce((s, v) => s + (Number(defautQuantities[v]) || 0), 0);
   const [tempsLocal, setTempsLocal] = useState(DEFAULT_TEMPS);
   useEffect(() => {
     if (causesData) setTempsLocal(causesData.temps || DEFAULT_TEMPS);
@@ -711,7 +690,7 @@ export default function DashboardPage({ session }) {
     if (!sheet) return;
     const already = currentSelections[categorie].includes(valeur);
     apiPost("/api/causes", { type: "selection", sheetId: sheet.id, date: selectedDateIso, categorie, valeur, action: already ? "remove" : "add" }).then((res) => {
-      setCausesData((prev) => ({ ...prev, selections: res.selections, quantities: res.quantities }));
+      setCausesData((prev) => ({ ...prev, selections: res.selections, absenceQuantities: res.absenceQuantities }));
       refreshParetoStats();
       refreshKpiRings();
     });
@@ -725,25 +704,13 @@ export default function DashboardPage({ session }) {
     });
   }
 
-  // Gestion générique des quantités associées à chaque cause sélectionnée
-  // (risques, types de défaut, causes d'absence).
-  const quantityDebounce = useRef({});
-  function setCauseQuantity(categorie, valeur, qty) {
-    setCausesData((prev) => ({
-      ...prev,
-      quantities: {
-        ...(prev && prev.quantities ? prev.quantities : DEFAULT_QUANTITIES),
-        [categorie]: {
-          ...((prev && prev.quantities && prev.quantities[categorie]) || {}),
-          [valeur]: qty,
-        },
-      },
-    }));
-    const debounceKey = `${categorie}:${valeur}`;
-    if (quantityDebounce.current[debounceKey]) clearTimeout(quantityDebounce.current[debounceKey]);
-    quantityDebounce.current[debounceKey] = setTimeout(() => {
+  const absenceQtyDebounce = useRef({});
+  function setAbsenceQuantity(valeur, qty) {
+    setCausesData((prev) => ({ ...prev, absenceQuantities: { ...(prev.absenceQuantities || {}), [valeur]: qty } }));
+    if (absenceQtyDebounce.current[valeur]) clearTimeout(absenceQtyDebounce.current[valeur]);
+    absenceQtyDebounce.current[valeur] = setTimeout(() => {
       if (!sheet) return;
-      apiPost("/api/causes", { type: "causeQuantity", sheetId: sheet.id, date: selectedDateIso, categorie, valeur, quantite: qty }).then(() => refreshParetoStats());
+      apiPost("/api/causes", { type: "absenceQuantity", sheetId: sheet.id, date: selectedDateIso, valeur, quantite: qty }).then(() => refreshParetoStats());
     }, 500);
   }
 
@@ -760,38 +727,11 @@ export default function DashboardPage({ session }) {
 
   const [dayParamsC, setDayParamsC] = useState({});
   const [dayParamsQ, setDayParamsQ] = useState({});
-  const [dayParamsD, setDayParamsD] = useState({});
   useEffect(() => {
     if (!sheet) return;
     apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=C`).then((d) => setDayParamsC(d || {}));
     apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=Q`).then((d) => setDayParamsQ(d || {}));
-    apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=D`).then((d) => setDayParamsD(d || {}));
   }, [sheet, selectedDateIso, paramsDraft]);
-
-  // Synchronise la "quantité totale produite" entre Qualité (quantiteTotale),
-  // Coût (quantiteProduite) et Délai (quantiteProduite) : quand on la saisit
-  // dans l'un de ces trois KPI, elle se reporte automatiquement dans les deux autres.
-  const syncQtyDebounce = useRef(null);
-  function setSyncedQuantiteTotale(value) {
-    const field = QUANTITE_TOTALE_FIELD[selectedKpi];
-    if (!field) return;
-    setDraftField(field, value);
-    if (syncQtyDebounce.current) clearTimeout(syncQtyDebounce.current);
-    syncQtyDebounce.current = setTimeout(() => {
-      if (!sheet) return;
-      Object.keys(QUANTITE_TOTALE_FIELD).forEach((k) => {
-        if (k === selectedKpi) return;
-        const otherField = QUANTITE_TOTALE_FIELD[k];
-        const current = k === "Q" ? dayParamsQ : k === "C" ? dayParamsC : dayParamsD;
-        const merged = { ...current, [otherField]: value };
-        apiPost("/api/kpiParams", { sheetId: sheet.id, date: selectedDateIso, kpi: k, data: merged }).then(() => {
-          if (k === "Q") setDayParamsQ(merged);
-          if (k === "C") setDayParamsC(merged);
-          if (k === "D") setDayParamsD(merged);
-        });
-      });
-    }, 600);
-  }
 
   const tempsRequisMin = (Number(tempsLocal.ouverture * 60) || 0) - (Number(tempsLocal.planifie) || 0);
   const tempsFonctionnementMin =
@@ -1215,7 +1155,7 @@ export default function DashboardPage({ session }) {
                       <>
                         <NumField label="Retours clients" unit="retour" value={paramsDraft.retoursClients ?? ""} onChange={(v) => setDraftField("retoursClients", v)} />
                         <NumField label="Nombre de rebuts" unit="pièce" value={paramsDraft.rebuts ?? ""} onChange={(v) => setDraftField("rebuts", v)} />
-                        <NumField label="Quantité totale produite" unit="pièce" value={paramsDraft.quantiteTotale ?? ""} onChange={(v) => setSyncedQuantiteTotale(v)} />
+                        <NumField label="Quantité totale produite" unit="pièce" value={paramsDraft.quantiteTotale ?? ""} onChange={(v) => setDraftField("quantiteTotale", v)} />
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           Taux de rebut calculé : <span className="font-bold text-gray-700">{tauxRebut.toFixed(1)}%</span>
                         </p>
@@ -1223,7 +1163,7 @@ export default function DashboardPage({ session }) {
                     )}
                     {selectedKpi === "C" && (
                       <>
-                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setSyncedQuantiteTotale(v)} />
+                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
                         <NumField label="Temps de cycle ligne" unit="min/pièce" value={paramsDraft.tempsCycleLigne ?? ""} onChange={(v) => setDraftField("tempsCycleLigne", v)} />
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           Quantité objectif (calculée) : <span className="font-bold text-gray-700">{paramsDraft.quantiteObjectif || 0}</span> pièce
@@ -1236,7 +1176,7 @@ export default function DashboardPage({ session }) {
                     )}
                     {selectedKpi === "D" && (
                       <>
-                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setSyncedQuantiteTotale(v)} />
+                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
                         <NumField label="Quantité planifiée" unit="pièce" value={paramsDraft.quantitePlanifiee ?? ""} onChange={(v) => setDraftField("quantitePlanifiee", v)} />
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           PDP calculé : <span className="font-bold text-gray-700">{pdp.toFixed(1)}%</span>
@@ -1274,24 +1214,6 @@ export default function DashboardPage({ session }) {
                             allowAdd
                             onAddNew={(val) => addDictionaryEntry("risque", val)}
                           />
-                          {currentSelections.risque.length > 0 && (
-                            <div className="flex flex-col gap-1 mt-1">
-                              {currentSelections.risque.map((v) => (
-                                <div key={v} className="flex items-center justify-between gap-1 bg-gray-50 rounded-md px-1 py-0.5">
-                                  <span className="text-[6px] text-gray-600 truncate">{v}</span>
-                                  <InputWithKeyboard
-                                    type="number"
-                                    value={risqueQuantities[v] ?? 0}
-                                    onChange={(e) => setCauseQuantity("risque", v, Number(e.target.value) || 0)}
-                                    className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
-                                  />
-                                </div>
-                              ))}
-                              <p className={`text-[6px] mt-0.5 font-semibold ${risqueSum === (Number(paramsDraft.risques) || 0) ? "text-green-600" : "text-red-500"}`}>
-                                Total réparti : {risqueSum} / {Number(paramsDraft.risques) || 0}
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1323,24 +1245,6 @@ export default function DashboardPage({ session }) {
                             addExtra={{ options: postes }}
                             onAddNew={({ label, extra }) => addDictionaryEntry("defaut", label, extra)}
                           />
-                          {currentSelections.defaut.length > 0 && (
-                            <div className="flex flex-col gap-1 mt-1">
-                              {currentSelections.defaut.map((v) => (
-                                <div key={v} className="flex items-center justify-between gap-1 bg-gray-50 rounded-md px-1 py-0.5">
-                                  <span className="text-[6px] text-gray-600 truncate">{v}</span>
-                                  <InputWithKeyboard
-                                    type="number"
-                                    value={defautQuantities[v] ?? 0}
-                                    onChange={(e) => setCauseQuantity("defaut", v, Number(e.target.value) || 0)}
-                                    className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
-                                  />
-                                </div>
-                              ))}
-                              <p className={`text-[6px] mt-0.5 font-semibold ${defautSum === (Number(paramsDraft.rebuts) || 0) ? "text-green-600" : "text-red-500"}`}>
-                                Total réparti : {defautSum} / {Number(paramsDraft.rebuts) || 0}
-                              </p>
-                            </div>
-                          )}
                         </div>
                       </div>
                     )}
@@ -1405,7 +1309,7 @@ export default function DashboardPage({ session }) {
                                 <InputWithKeyboard
                                   type="number"
                                   value={absenceQuantities[v] ?? 0}
-                                  onChange={(e) => setCauseQuantity("absence", v, Number(e.target.value) || 0)}
+                                  onChange={(e) => setAbsenceQuantity(v, Number(e.target.value) || 0)}
                                   className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
                                 />
                               </div>
@@ -1659,7 +1563,6 @@ export default function DashboardPage({ session }) {
               <div className="flex items-center gap-1 text-[6px] text-gray-500">
                 Période Pareto :
                 <select value={paretoPeriod} onChange={(e) => setParetoPeriod(e.target.value)} className="border border-gray-200 rounded-md px-1 py-0.5 text-[6px]">
-                  <option value="jour">Cette journée</option>
                   <option value="semaine">Dernière semaine</option>
                   <option value="mois">Dernier mois</option>
                 </select>
