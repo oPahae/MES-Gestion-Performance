@@ -1,3 +1,4 @@
+// pages/api/causes.js
 import { query } from "../../lib/db"
 
 async function loadDictionary(sheetId) {
@@ -21,13 +22,15 @@ async function loadSelections(sheetId, date) {
   const rows = await query("SELECT categorie, valeur, quantite FROM cause_selections WHERE sheet_id = ? AND date_jour = ?", [sheetId, date]);
   const selections = { place: [], risque: [], defaut: [], absence: [] };
   const absenceQuantities = {};
+  const risqueQuantities = {};
+  const defautQuantities = {};
   rows.forEach((r) => {
     selections[r.categorie].push(r.valeur);
-    if (r.categorie === "absence") {
-      absenceQuantities[r.valeur] = r.quantite || 0;
-    }
+    if (r.categorie === "absence") absenceQuantities[r.valeur] = r.quantite || 0;
+    if (r.categorie === "risque") risqueQuantities[r.valeur] = r.quantite || 0;
+    if (r.categorie === "defaut") defautQuantities[r.valeur] = r.quantite || 0;
   });
-  return { selections, absenceQuantities };
+  return { selections, absenceQuantities, risqueQuantities, defautQuantities };
 }
 
 async function loadTemps(sheetId, date) {
@@ -35,7 +38,7 @@ async function loadTemps(sheetId, date) {
     "SELECT ROUND(ouverture / 60, 2) as ouverture, planifie, arret, changement, rupture, autre, gammes FROM cause_temps WHERE sheet_id = ? AND date_jour = ?",
     [sheetId, date]
   );
-  return rows.length ? rows[0] : { ouverture:0, planifie:0, arret:0, changement:0, rupture:0, autre:0, gammes:0 };
+  return rows.length ? rows[0] : { ouverture: 0, planifie: 0, arret: 0, changement: 0, rupture: 0, autre: 0, gammes: 0 };
 }
 
 export default async function handler(req, res) {
@@ -44,7 +47,14 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     try {
       const [dictionary, selectionsData, temps] = await Promise.all([loadDictionary(sheetId), loadSelections(sheetId, date), loadTemps(sheetId, date)]);
-      res.status(200).json({ dictionary, selections: selectionsData.selections, absenceQuantities: selectionsData.absenceQuantities, temps });
+      res.status(200).json({
+        dictionary,
+        selections: selectionsData.selections,
+        absenceQuantities: selectionsData.absenceQuantities,
+        risqueQuantities: selectionsData.risqueQuantities,
+        defautQuantities: selectionsData.defautQuantities,
+        temps,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
@@ -73,12 +83,13 @@ export default async function handler(req, res) {
 
       if (body.type === "selection") {
         if (body.action === "add") {
+          const withQuantite = ["absence", "risque", "defaut"].includes(body.categorie);
           await query("INSERT INTO cause_selections (sheet_id, date_jour, categorie, valeur, quantite) VALUES (?, ?, ?, ?, ?)", [
             body.sheetId,
             body.date,
             body.categorie,
             body.valeur,
-            body.categorie === "absence" ? 0 : null,
+            withQuantite ? 0 : null,
           ]);
         } else {
           await query("DELETE FROM cause_selections WHERE sheet_id = ? AND date_jour = ? AND categorie = ? AND valeur = ? LIMIT 1", [
@@ -88,8 +99,8 @@ export default async function handler(req, res) {
             body.valeur,
           ]);
         }
-        const { selections, absenceQuantities } = await loadSelections(body.sheetId, body.date);
-        res.status(200).json({ selections, absenceQuantities });
+        const data = await loadSelections(body.sheetId, body.date);
+        res.status(200).json(data);
         return;
       }
 
@@ -98,8 +109,28 @@ export default async function handler(req, res) {
           "UPDATE cause_selections SET quantite = ? WHERE sheet_id = ? AND date_jour = ? AND categorie = 'absence' AND valeur = ?",
           [body.quantite, body.sheetId, body.date, body.valeur]
         );
-        const { selections, absenceQuantities } = await loadSelections(body.sheetId, body.date);
-        res.status(200).json({ selections, absenceQuantities });
+        const data = await loadSelections(body.sheetId, body.date);
+        res.status(200).json(data);
+        return;
+      }
+
+      if (body.type === "risqueQuantity") {
+        await query(
+          "UPDATE cause_selections SET quantite = ? WHERE sheet_id = ? AND date_jour = ? AND categorie = 'risque' AND valeur = ?",
+          [body.quantite, body.sheetId, body.date, body.valeur]
+        );
+        const data = await loadSelections(body.sheetId, body.date);
+        res.status(200).json(data);
+        return;
+      }
+
+      if (body.type === "defautQuantity") {
+        await query(
+          "UPDATE cause_selections SET quantite = ? WHERE sheet_id = ? AND date_jour = ? AND categorie = 'defaut' AND valeur = ?",
+          [body.quantite, body.sheetId, body.date, body.valeur]
+        );
+        const data = await loadSelections(body.sheetId, body.date);
+        res.status(200).json(data);
         return;
       }
 

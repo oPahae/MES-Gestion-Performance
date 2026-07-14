@@ -16,11 +16,11 @@ import {
   FaTrash,
   FaTimes,
   FaChevronDown,
-  FaInfoCircle,
   FaCheckCircle,
   FaSave,
   FaChevronLeft,
   FaChevronRight,
+  FaExclamationTriangle,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -88,7 +88,6 @@ function MiniKeyboard({ type, onKeyClick, onBackspace, onClear, dragHandleProps 
       className="bg-white border border-gray-300 rounded-md shadow-lg p-0.5 select-none"
       style={{ width: isNumber ? 90 : 205 }}
     >
-      {/* Poignée de drag */}
       {dragHandleProps && (
         <div
           {...dragHandleProps}
@@ -98,7 +97,6 @@ function MiniKeyboard({ type, onKeyClick, onBackspace, onClear, dragHandleProps 
         </div>
       )}
 
-      {/* Switch de mode — uniquement pour les inputs texte */}
       {!isNumber && (
         <div className="flex gap-0.5 mb-0.5">
           {[
@@ -175,22 +173,35 @@ function MiniKeyboard({ type, onKeyClick, onBackspace, onClear, dragHandleProps 
 function InputWithKeyboard({ type, value, onChange, className = "", ...props }) {
   const [showKeyboard, setShowKeyboard] = useState(false);
   const [pos, setPos] = useState(null);
+  const [focused, setFocused] = useState(false);
+  const [localValue, setLocalValue] = useState(value === undefined || value === null ? "" : String(value));
   const inputRef = useRef(null);
   const dragRef = useRef(null);
 
+  useEffect(() => {
+    if (!focused) {
+      setLocalValue(value === undefined || value === null ? "" : String(value));
+    }
+  }, [value, focused]);
+
+  const emitChange = (newValue) => {
+    setLocalValue(newValue);
+    onChange({ target: { value: newValue } });
+  };
+
   const handleKeyClick = (key) => {
     if (type === "number" && !/^[0-9.\-]$/.test(key)) return;
-    const newValue = (value || "").toString() + key;
-    onChange({ target: { value: newValue } });
+    const newValue = (localValue || "") + key;
+    emitChange(newValue);
   };
 
   const handleBackspace = () => {
-    const newValue = (value || "").toString().slice(0, -1);
-    onChange({ target: { value: newValue } });
+    const newValue = (localValue || "").slice(0, -1);
+    emitChange(newValue);
   };
 
   const handleClear = () => {
-    onChange({ target: { value: "" } });
+    emitChange("");
   };
 
   function openKeyboard() {
@@ -243,11 +254,18 @@ function InputWithKeyboard({ type, value, onChange, className = "", ...props }) 
     <div className="relative">
       <input
         ref={inputRef}
-        type={type}
-        value={value}
-        onChange={onChange}
-        onFocus={openKeyboard}
-        onBlur={() => setShowKeyboard(false)}
+        type={type === "number" ? "text" : type}
+        inputMode={type === "number" ? "decimal" : undefined}
+        value={localValue}
+        onChange={(e) => emitChange(e.target.value)}
+        onFocus={() => {
+          setFocused(true);
+          openKeyboard();
+        }}
+        onBlur={() => {
+          setFocused(false);
+          setShowKeyboard(false);
+        }}
         className={className}
         {...props}
       />
@@ -384,12 +402,26 @@ function BodySilhouette({ injuries }) {
   );
 }
 
-function SearchDropdown({ label, options, selected, onToggleOption, allowAdd, onAddNew, addExtra }) {
+function SearchDropdown({ label, options, selected, onToggleOption, allowAdd, onAddNew, addExtra, onClose }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const [adding, setAdding] = useState(false);
   const [newText, setNewText] = useState("");
   const [newExtra, setNewExtra] = useState(addExtra && addExtra.options.length ? addExtra.options[0] : "");
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setOpen(false);
+        if (onClose) onClose();
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, [dropdownRef, onClose]);
 
   const filtered = options.filter((o) => o.toLowerCase().includes(search.toLowerCase()));
 
@@ -402,7 +434,7 @@ function SearchDropdown({ label, options, selected, onToggleOption, allowAdd, on
   }
 
   return (
-    <div className="relative">
+    <div className="relative" ref={dropdownRef}>
       <div onClick={() => setOpen((o) => !o)} className="border border-gray-200 rounded-lg p-1 flex items-start justify-between min-h-[32px] cursor-pointer">
         <div className="flex flex-wrap gap-1">
           {selected.length === 0 && <span className="text-[6px] text-gray-300 mt-0.5">Aucune sélection...</span>}
@@ -543,7 +575,7 @@ function MiniPareto({ data, barColor, lineColor }) {
         <ComposedChart data={data} margin={{ top: 2, right: 2, left: 0, bottom: 14 }}>
           <CartesianGrid vertical={false} stroke="#F1F5F9" />
           <XAxis dataKey="name" tick={{ fontSize: 4 }} interval={0} angle={-40} textAnchor="end" height={30} tickMargin={2} />
-          <YAxis yAxisId="left" tick={{ fontSize: 5 }} width={10} />
+          <YAxis yAxisId="left" tick={{ fontSize: 5 }} width={18} />
           <YAxis yAxisId="right" orientation="right" domain={[0, 100]} tick={{ fontSize: 5 }} width={13} />
           <Tooltip />
           <Bar yAxisId="left" dataKey="nombre" fill={barColor} radius={[3, 3, 0, 0]} />
@@ -594,12 +626,13 @@ export default function DashboardPage({ session }) {
   const [kpiRings, setKpiRings] = useState(null);
 
   function refreshKpiRings() {
-    if (!sheet) return;
+    if (!sheet || !days || days.length === 0) return;
     const params = new URLSearchParams({ sheetId: sheet.id, periode, sheetType, startDate: customStart, endDate: customEnd });
     apiGet(`/api/kpiRings?${params.toString()}`).then(setKpiRings).catch(() => { });
   }
   useEffect(refreshKpiRings, [sheet, periode, customStart, customEnd]);
 
+  const [allParams, setAllParams] = useState({});
   const [paramsDraft, setParamsDraft] = useState({});
   const [savedMsg, setSavedMsg] = useState("");
   const loadedParamsRef = useRef("{}");
@@ -613,16 +646,25 @@ export default function DashboardPage({ session }) {
   useEffect(() => {
     if (!sheet) return;
     let cancelled = false;
-    apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=${selectedKpi}`).then((data) => {
+    apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}`).then((data) => {
       if (cancelled) return;
-      const decoded = data || {};
-      loadedParamsRef.current = JSON.stringify(decoded);
-      setParamsDraft(decoded);
+      const loaded = data || {};
+      setAllParams(loaded);
+      const currentKpiParams = loaded[selectedKpi] || {};
+      loadedParamsRef.current = JSON.stringify(currentKpiParams);
+      setParamsDraft(currentKpiParams);
     });
-    return () => {
-      cancelled = true;
-    };
-  }, [sheet, selectedDateIso, selectedKpi]);
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sheet, selectedDateIso]);
+
+  useEffect(() => {
+    if (!sheet) return;
+    const currentKpiParams = allParams[selectedKpi] || {};
+    loadedParamsRef.current = JSON.stringify(currentKpiParams);
+    setParamsDraft(currentKpiParams);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedKpi]);
 
   useEffect(() => {
     if (!sheet) return;
@@ -632,6 +674,7 @@ export default function DashboardPage({ session }) {
       apiPost("/api/kpiParams", { sheetId: sheet.id, date: selectedDateIso, kpi: selectedKpi, data: paramsDraft }).then(() => {
         loadedParamsRef.current = JSON.stringify(paramsDraft);
         flashSaved(`Données du ${fmtFR(selectedDateIso)} enregistrées automatiquement`);
+        apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}`).then((data) => setAllParams(data || {}));
         refreshKpiRings();
         refreshKpiTrend();
       });
@@ -640,12 +683,36 @@ export default function DashboardPage({ session }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsDraft]);
 
-  const tauxRebut = Number(paramsDraft.quantiteTotale) > 0 ? (Number(paramsDraft.rebuts || 0) / Number(paramsDraft.quantiteTotale)) * 100 : 0;
-  const efficience = Number(paramsDraft.quantiteObjectif) > 0 ? (Number(paramsDraft.quantiteProduite || 0) / Number(paramsDraft.quantiteObjectif)) * 100 : 0;
-  const pdp = Number(paramsDraft.quantitePlanifiee) > 0 ? (Number(paramsDraft.quantiteProduite || 0) / Number(paramsDraft.quantitePlanifiee)) * 100 : 0;
+  const paramsQ = allParams.Q || {};
+  const paramsC = allParams.C || {};
+  const paramsD = allParams.D || {};
+
+  const tauxRebut = Number(paramsQ.quantiteTotale) > 0 ? (Number(paramsQ.rebuts || 0) / Number(paramsQ.quantiteTotale)) * 100 : 0;
+  const efficience = Number(paramsC.quantiteObjectif) > 0 ? (Number(paramsC.quantiteProduite || 0) / Number(paramsC.quantiteObjectif)) * 100 : 0;
+  const pdp = Number(paramsD.quantitePlanifiee) > 0 ? (Number(paramsD.quantiteProduite || 0) / Number(paramsD.quantitePlanifiee)) * 100 : 0;
   const efficienceLabel = sheetType === "machine" ? "TRS" : "Efficience";
 
   function setDraftField(field, value) {
+    if (field === 'quantiteProduite' && (selectedKpi === 'C' || selectedKpi === 'D')) {
+      const newParamsC = { ...(allParams.C || {}), quantiteProduite: value };
+      const newParamsD = { ...(allParams.D || {}), quantiteProduite: value };
+      const newParamsQ = {
+        ...(allParams.Q || {}),
+        quantiteTotale: Number(value) || 0
+      };
+      setAllParams(prev => ({ ...prev, C: newParamsC, D: newParamsD, Q: newParamsQ }));
+    } else if (field === 'rebuts' && selectedKpi === 'Q') {
+      const newParamsQ = {
+        ...(allParams.Q || {}),
+        rebuts: value,
+        quantiteTotale: Number(allParams.C?.quantiteProduite) || 0
+      };
+      setAllParams(prev => ({ ...prev, Q: newParamsQ }));
+    } else if (field === 'quantiteTotale' && selectedKpi === 'Q') {
+      const newParamsQ = { ...(allParams.Q || {}), quantiteTotale: value };
+      setAllParams(prev => ({ ...prev, Q: newParamsQ }));
+    }
+
     setParamsDraft((prev) => ({ ...prev, [field]: value }));
   }
 
@@ -673,8 +740,16 @@ export default function DashboardPage({ session }) {
 
   const currentSelections = (causesData && causesData.selections) || DEFAULT_SELECTIONS;
   const dictionary = (causesData && causesData.dictionary) || { risque: [], defaut: [], absence: [] };
+
   const absenceQuantities = (causesData && causesData.absenceQuantities) || {};
   const absenceSum = currentSelections.absence.reduce((s, v) => s + (Number(absenceQuantities[v]) || 0), 0);
+
+  const risqueQuantities = (causesData && causesData.risqueQuantities) || {};
+  const risqueSum = currentSelections.risque.reduce((s, v) => s + (Number(risqueQuantities[v]) || 0), 0);
+
+  const defautQuantities = (causesData && causesData.defautQuantities) || {};
+  const defautSum = currentSelections.defaut.reduce((s, v) => s + (Number(defautQuantities[v]) || 0), 0);
+
   const [tempsLocal, setTempsLocal] = useState(DEFAULT_TEMPS);
   useEffect(() => {
     if (causesData) setTempsLocal(causesData.temps || DEFAULT_TEMPS);
@@ -690,27 +765,49 @@ export default function DashboardPage({ session }) {
     if (!sheet) return;
     const already = currentSelections[categorie].includes(valeur);
     apiPost("/api/causes", { type: "selection", sheetId: sheet.id, date: selectedDateIso, categorie, valeur, action: already ? "remove" : "add" }).then((res) => {
-      setCausesData((prev) => ({ ...prev, selections: res.selections, absenceQuantities: res.absenceQuantities }));
+      setCausesData((prev) => ({ ...prev, ...res }));
       refreshParetoStats();
       refreshKpiRings();
     });
   }
   function addDictionaryEntry(categorie, libelle, posteLabel) {
     if (!sheet) return;
-    apiPost("/api/causes", { type: "dictionary", sheetId: sheet.id, categorie, libelle, posteLabel }).then((res) => {
-      setCausesData((prev) => ({ ...prev, dictionary: res.dictionary }));
+    apiPost("/api/causes", { type: "dictionary", sheetId: sheet.id, date: selectedDateIso, categorie, libelle, posteLabel }).then((res) => {
+      setCausesData((prev) => ({ ...prev, ...res }));
       const valeur = posteLabel ? `${libelle} — ${posteLabel}` : libelle;
       toggleSelection(categorie, valeur);
     });
   }
 
   const absenceQtyDebounce = useRef({});
-  function setAbsenceQuantity(valeur, qty) {
-    setCausesData((prev) => ({ ...prev, absenceQuantities: { ...(prev.absenceQuantities || {}), [valeur]: qty } }));
-    if (absenceQtyDebounce.current[valeur]) clearTimeout(absenceQtyDebounce.current[valeur]);
-    absenceQtyDebounce.current[valeur] = setTimeout(() => {
+  const risqueQtyDebounce = useRef({});
+  const defautQtyDebounce = useRef({});
+
+  function setCauseQuantity(categorie, valeur, qty) {
+    let stateSetter, debounceRef, apiType;
+
+    if (categorie === 'absence') {
+      stateSetter = (prev) => ({ ...prev, absenceQuantities: { ...(prev.absenceQuantities || {}), [valeur]: qty } });
+      debounceRef = absenceQtyDebounce;
+      apiType = 'absenceQuantity';
+    } else if (categorie === 'risque') {
+      stateSetter = (prev) => ({ ...prev, risqueQuantities: { ...(prev.risqueQuantities || {}), [valeur]: qty } });
+      debounceRef = risqueQtyDebounce;
+      apiType = 'risqueQuantity';
+    } else if (categorie === 'defaut') {
+      stateSetter = (prev) => ({ ...prev, defautQuantities: { ...(prev.defautQuantities || {}), [valeur]: qty } });
+      debounceRef = defautQtyDebounce;
+      apiType = 'defautQuantity';
+    } else {
+      return;
+    }
+
+    setCausesData(stateSetter);
+
+    if (debounceRef.current[valeur]) clearTimeout(debounceRef.current[valeur]);
+    debounceRef.current[valeur] = setTimeout(() => {
       if (!sheet) return;
-      apiPost("/api/causes", { type: "absenceQuantity", sheetId: sheet.id, date: selectedDateIso, valeur, quantite: qty }).then(() => refreshParetoStats());
+      apiPost("/api/causes", { type: apiType, sheetId: sheet.id, date: selectedDateIso, valeur, quantite: qty }).then(() => refreshParetoStats());
     }, 500);
   }
 
@@ -725,19 +822,11 @@ export default function DashboardPage({ session }) {
     }, 500);
   }
 
-  const [dayParamsC, setDayParamsC] = useState({});
-  const [dayParamsQ, setDayParamsQ] = useState({});
-  useEffect(() => {
-    if (!sheet) return;
-    apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=C`).then((d) => setDayParamsC(d || {}));
-    apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}&kpi=Q`).then((d) => setDayParamsQ(d || {}));
-  }, [sheet, selectedDateIso, paramsDraft]);
-
   const tempsRequisMin = (Number(tempsLocal.ouverture * 60) || 0) - (Number(tempsLocal.planifie) || 0);
   const tempsFonctionnementMin =
     tempsRequisMin - ((Number(tempsLocal.arret) || 0) + (Number(tempsLocal.changement) || 0) + (Number(tempsLocal.rupture) || 0) + (Number(tempsLocal.autre) || 0));
-  const qtyProducedForTemps = selectedKpi === "C" ? Number(paramsDraft.quantiteProduite) || 0 : Number(dayParamsC.quantiteProduite) || 0;
-  const qtyRebutForTemps = selectedKpi === "Q" ? Number(paramsDraft.rebuts) || 0 : Number(dayParamsQ.rebuts) || 0;
+  const qtyProducedForTemps = Number(paramsC.quantiteProduite) || 0;
+  const qtyRebutForTemps = Number(paramsQ.rebuts) || 0;
   const tempsUtileMin = qtyProducedForTemps * (Number(tempsLocal.gammes) || 0);
   const tempsNonQualiteMin = qtyRebutForTemps * (Number(tempsLocal.gammes) || 0);
   const tempsNetMin = tempsUtileMin + tempsNonQualiteMin;
@@ -749,10 +838,10 @@ export default function DashboardPage({ session }) {
     const cycle = Number(paramsDraft.tempsCycleLigne) || 0;
     if (cycle <= 0) return;
     const computed = computeQuantiteObjectif(cycle, tempsRequisMin / 60);
-    if (Number(paramsDraft.quantiteObjectif || 0) !== computed) {
+    if (Number(paramsC.quantiteObjectif || 0) !== computed) {
       setDraftField("quantiteObjectif", computed);
     }
-  }, [selectedKpi, paramsDraft.tempsCycleLigne, tempsRequisMin]);
+  }, [selectedKpi, paramsC.tempsCycleLigne, tempsRequisMin]);
 
   const [notifications, setNotifications] = useState([]);
   const [retourClientNote, setRetourClientNote] = useState("");
@@ -873,16 +962,19 @@ export default function DashboardPage({ session }) {
     apiPut(`/api/planningTickets/${id}`, { date: toDate }).then(refreshPlanning);
   }
 
-  const [paretoPeriod, setParetoPeriod] = useState("semaine");
+  const [paretoPeriod, setParetoPeriod] = useState("jour");
   const [paretoPoste, setParetoPoste] = useState("");
   const [paretoStats, setParetoStats] = useState(null);
   function refreshParetoStats() {
     if (!sheet) return;
-    const params = new URLSearchParams({ sheetId: sheet.id, periode: paretoPeriod });
+    let start = selectedDateIso;
+    if (paretoPeriod === "semaine") start = addDaysIso(selectedDateIso, -6);
+    if (paretoPeriod === "mois") start = addDaysIso(selectedDateIso, -29);
+    const params = new URLSearchParams({ sheetId: sheet.id, periode: paretoPeriod, startDate: start, endDate: selectedDateIso });
     if (paretoPoste) params.set("poste", paretoPoste);
     apiGet(`/api/paretoStats?${params.toString()}`).then(setParetoStats).catch(() => { });
   }
-  useEffect(refreshParetoStats, [sheet, paretoPeriod, paretoPoste]);
+  useEffect(refreshParetoStats, [sheet, paretoPeriod, paretoPoste, selectedDateIso]);
 
   const [tickets, setTickets] = useState([]);
   const [addingTicket, setAddingTicket] = useState(false);
@@ -1155,7 +1247,19 @@ export default function DashboardPage({ session }) {
                       <>
                         <NumField label="Retours clients" unit="retour" value={paramsDraft.retoursClients ?? ""} onChange={(v) => setDraftField("retoursClients", v)} />
                         <NumField label="Nombre de rebuts" unit="pièce" value={paramsDraft.rebuts ?? ""} onChange={(v) => setDraftField("rebuts", v)} />
-                        <NumField label="Quantité totale produite" unit="pièce" value={paramsDraft.quantiteTotale ?? ""} onChange={(v) => setDraftField("quantiteTotale", v)} />
+                        <div className="mb-1.5">
+                          <label className="text-[6px] text-gray-500 flex items-center gap-0.5">Quantité totale produite</label>
+                          <div className="flex items-center gap-1 mt-0.5">
+                            <InputWithKeyboard
+                              type="number"
+                              readOnly
+                              value={paramsQ.quantiteTotale ?? ""}
+                              onChange={() => { }}
+                              className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[6px] bg-gray-50"
+                            />
+                            <span className="text-[6px] text-gray-500">pièce</span>
+                          </div>
+                        </div>
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           Taux de rebut calculé : <span className="font-bold text-gray-700">{tauxRebut.toFixed(1)}%</span>
                         </p>
@@ -1163,10 +1267,10 @@ export default function DashboardPage({ session }) {
                     )}
                     {selectedKpi === "C" && (
                       <>
-                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
+                        <NumField label="Quantité produite" unit="pièce" value={paramsC.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
                         <NumField label="Temps de cycle ligne" unit="min/pièce" value={paramsDraft.tempsCycleLigne ?? ""} onChange={(v) => setDraftField("tempsCycleLigne", v)} />
                         <p className="text-[6px] text-gray-500 mt-0.5">
-                          Quantité objectif (calculée) : <span className="font-bold text-gray-700">{paramsDraft.quantiteObjectif || 0}</span> pièce
+                          Quantité objectif (calculée) : <span className="font-bold text-gray-700">{paramsC.quantiteObjectif || 0}</span> pièce
                         </p>
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           {efficienceLabel} calculé(e) : <span className="font-bold text-gray-700">{efficience.toFixed(1)}%</span>
@@ -1176,7 +1280,7 @@ export default function DashboardPage({ session }) {
                     )}
                     {selectedKpi === "D" && (
                       <>
-                        <NumField label="Quantité produite" unit="pièce" value={paramsDraft.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
+                        <NumField label="Quantité produite" unit="pièce" value={paramsD.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
                         <NumField label="Quantité planifiée" unit="pièce" value={paramsDraft.quantitePlanifiee ?? ""} onChange={(v) => setDraftField("quantitePlanifiee", v)} />
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           PDP calculé : <span className="font-bold text-gray-700">{pdp.toFixed(1)}%</span>
@@ -1193,18 +1297,18 @@ export default function DashboardPage({ session }) {
                     )}
                   </div>
 
-                  <div className="w-1/3 border border-gray-200 rounded-lg p-1.5 overflow-auto flex flex-col">
+                  <div className="w-2/5 border border-gray-200 rounded-lg p-1.5 overflow-auto flex flex-col">
                     <h3 className="text-[6px] font-bold text-gray-500 mb-1">Causes de non-performance</h3>
 
                     {selectedKpi === "S" && (
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="flex flex-col gap-1.5">
                         <div>
                           <h4 className="text-[6px] font-semibold text-gray-500 mb-1">Place d&apos;injure</h4>
                           <SearchDropdown label="une zone" options={PLACE_OPTIONS} selected={currentSelections.place} onToggleOption={(v) => toggleSelection("place", v)} allowAdd={false} />
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-[6px] font-semibold text-gray-500 mb-1 flex items-center gap-0.5">
-                            Risques <FaInfoCircle className="text-gray-300" />
+                            Risques
                           </h4>
                           <SearchDropdown
                             label="un risque"
@@ -1214,12 +1318,30 @@ export default function DashboardPage({ session }) {
                             allowAdd
                             onAddNew={(val) => addDictionaryEntry("risque", val)}
                           />
+                          {currentSelections.risque.length > 0 && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              {currentSelections.risque.map((v) => (
+                                <div key={v} className="flex items-center justify-between gap-1 bg-gray-50 rounded-md px-1 py-0.5">
+                                  <span className="text-[6px] text-gray-600 truncate">{v}</span>
+                                  <InputWithKeyboard
+                                    type="number"
+                                    value={risqueQuantities[v] ?? 0}
+                                    onChange={(e) => setCauseQuantity('risque', v, Number(e.target.value) || 0)}
+                                    className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
+                                  />
+                                </div>
+                              ))}
+                              <p className={`text-[6px] mt-0.5 font-semibold ${risqueSum === (Number(paramsDraft.risques) || 0) ? "text-green-600" : "text-red-500"}`}>
+                                Total réparti : {risqueSum} / {Number(paramsDraft.risques) || 0}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
 
                     {selectedKpi === "Q" && (
-                      <div className="grid grid-cols-2 gap-1.5">
+                      <div className="flex flex-col gap-1.5">
                         <div>
                           <h4 className="text-[6px] font-semibold text-gray-500 mb-1">Causes des retours client (notifications uniquement)</h4>
                           <textarea
@@ -1234,7 +1356,7 @@ export default function DashboardPage({ session }) {
                           </button>
                           <p className="text-[5px] text-gray-400 mt-0.5">{notifications.length} notification(s) — exclues des diagrammes.</p>
                         </div>
-                        <div>
+                        <div className="flex-1">
                           <h4 className="text-[6px] font-semibold text-gray-500 mb-1">Type de défaut (avec poste)</h4>
                           <SearchDropdown
                             label="un type de défaut"
@@ -1245,6 +1367,24 @@ export default function DashboardPage({ session }) {
                             addExtra={{ options: postes }}
                             onAddNew={({ label, extra }) => addDictionaryEntry("defaut", label, extra)}
                           />
+                          {currentSelections.defaut.length > 0 && (
+                            <div className="flex flex-col gap-1 mt-1">
+                              {currentSelections.defaut.map((v) => (
+                                <div key={v} className="flex items-center justify-between gap-1 bg-gray-50 rounded-md px-1 py-0.5">
+                                  <span className="text-[6px] text-gray-600 truncate">{v}</span>
+                                  <InputWithKeyboard
+                                    type="number"
+                                    value={defautQuantities[v] ?? 0}
+                                    onChange={(e) => setCauseQuantity('defaut', v, Number(e.target.value) || 0)}
+                                    className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
+                                  />
+                                </div>
+                              ))}
+                              <p className={`text-[6px] mt-0.5 font-semibold ${defautSum === (Number(paramsDraft.rebuts) || 0) ? "text-green-600" : "text-red-500"}`}>
+                                Total réparti : {defautSum} / {Number(paramsDraft.rebuts) || 0}
+                              </p>
+                            </div>
+                          )}
                         </div>
                       </div>
                     )}
@@ -1269,6 +1409,11 @@ export default function DashboardPage({ session }) {
                           <TimeResult label="Temps net" hours={toH(tempsNetMin)} />
                           <TimeResult label="Temps de ralentissement" hours={toH(tempsRalentissementMin)} />
                         </div>
+                        {tempsRalentissementMin < 0 &&
+                          <div className="w-full flex justify-center items-center gap-1 text-red-500 font-bold mt-2">
+                            <FaExclamationTriangle size={8} className="-translate-y-[1px]" />Impossible de produire cette quantité dans ce temps de fonctionnement
+                          </div>
+                        }
                       </div>
                     )}
 
@@ -1309,7 +1454,7 @@ export default function DashboardPage({ session }) {
                                 <InputWithKeyboard
                                   type="number"
                                   value={absenceQuantities[v] ?? 0}
-                                  onChange={(e) => setAbsenceQuantity(v, Number(e.target.value) || 0)}
+                                  onChange={(e) => setCauseQuantity('absence', v, Number(e.target.value) || 0)}
                                   className="w-8 border border-gray-300 rounded px-0.5 py-0.5 text-[6px]"
                                 />
                               </div>
@@ -1323,7 +1468,7 @@ export default function DashboardPage({ session }) {
                     )}
                   </div>
 
-                  <div className="border border-gray-200 rounded-lg p-1.5 w-7/12">
+                  <div className="border border-gray-200 rounded-lg p-1.5 w-2/5">
                     <h4 className="text-[6px] font-semibold text-gray-500 mb-1">
                       Tendance hebdomadaire — {KPI_INFO[selectedKpi].label}
                       <span className="text-gray-400 font-normal ml-0.5">
@@ -1563,6 +1708,7 @@ export default function DashboardPage({ session }) {
               <div className="flex items-center gap-1 text-[6px] text-gray-500">
                 Période Pareto :
                 <select value={paretoPeriod} onChange={(e) => setParetoPeriod(e.target.value)} className="border border-gray-200 rounded-md px-1 py-0.5 text-[6px]">
+                  <option value="jour">Cette journée</option>
                   <option value="semaine">Dernière semaine</option>
                   <option value="mois">Dernier mois</option>
                 </select>
@@ -1602,7 +1748,7 @@ export default function DashboardPage({ session }) {
                     <BarChart data={paretoStats ? paretoStats.tempsCout.filter(item => item.name !== "Temps\nrequis") : []} margin={{ top: 2, right: 2, left: 0, bottom: 14 }}>
                       <CartesianGrid vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="name" tick={{ fontSize: 4 }} interval={0} angle={-40} textAnchor="end" height={30} tickMargin={2} />
-                      <YAxis tick={{ fontSize: 5 }} width={11} />
+                      <YAxis tick={{ fontSize: 5 }} width={20} />
                       <Tooltip />
                       <Bar dataKey="valeur" fill="#FB8C00" radius={[3, 3, 0, 0]} />
                     </BarChart>
@@ -1668,7 +1814,7 @@ export default function DashboardPage({ session }) {
                     <BarChart data={paretoStats ? paretoStats.absences : []} margin={{ top: 2, right: 2, left: 0, bottom: 14 }}>
                       <CartesianGrid vertical={false} stroke="#F1F5F9" />
                       <XAxis dataKey="name" tick={{ fontSize: 5 }} interval={0} angle={-40} textAnchor="end" height={30} tickMargin={2} />
-                      <YAxis tick={{ fontSize: 5 }} width={11} />
+                      <YAxis tick={{ fontSize: 5 }} width={20} />
                       <Tooltip />
                       <Bar dataKey="valeur" fill="#43A047" radius={[3, 3, 0, 0]} />
                     </BarChart>
