@@ -43,6 +43,7 @@ CREATE TABLE cause_selections (
   date_jour DATE NOT NULL,
   categorie ENUM('place', 'risque', 'defaut', 'absence') NOT NULL,
   valeur VARCHAR(150) NOT NULL,
+  quantite INT NULL,
   FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
 );
 
@@ -55,7 +56,8 @@ CREATE TABLE cause_temps (
   arret INT NOT NULL DEFAULT 0,
   changement INT NOT NULL DEFAULT 0,
   rupture INT NOT NULL DEFAULT 0,
-  objectif INT NOT NULL DEFAULT 0,
+  autre INT NOT NULL DEFAULT 0,
+  gammes INT NOT NULL DEFAULT 0,
   UNIQUE KEY uniq_sheet_temps_day (sheet_id, date_jour),
   FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
 );
@@ -66,6 +68,8 @@ CREATE TABLE retour_client_notifications (
   date_jour DATE NOT NULL,
   lu BOOLEAN DEFAULT FALSE,
   texte TEXT NOT NULL,
+  image LONGBLOB NULL,
+  image_mime VARCHAR(50) NULL,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
 );
@@ -78,6 +82,7 @@ CREATE TABLE actions (
   action VARCHAR(200) NOT NULL,
   pilote VARCHAR(100) NOT NULL DEFAULT '',
   statut ENUM('a_faire', 'en_cours', 'termine') NOT NULL DEFAULT 'a_faire',
+  kpi_key ENUM('S','Q','C','D','P') NOT NULL DEFAULT 'S',
   FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
 );
 
@@ -86,7 +91,14 @@ CREATE TABLE planning_tickets (
   sheet_id INT NOT NULL,
   date_jour DATE NOT NULL,
   texte VARCHAR(200) NOT NULL,
-  FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
+  action_id INT NULL,
+  kpi_key ENUM('S','Q','C','D','P') NULL,
+  probleme VARCHAR(200) NULL,
+  detail_action VARCHAR(200) NULL,
+  pilote VARCHAR(100) NULL,
+  statut ENUM('a_faire','en_cours','termine') NULL,
+  FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE,
+  CONSTRAINT fk_planning_action FOREIGN KEY (action_id) REFERENCES actions(id) ON DELETE CASCADE
 );
 
 CREATE TABLE pareto_tickets (
@@ -96,6 +108,22 @@ CREATE TABLE pareto_tickets (
   sous_titre VARCHAR(200) NOT NULL DEFAULT '',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
+);
+
+CREATE TABLE users (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  nom VARCHAR(100) NOT NULL,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  actif BOOLEAN NOT NULL DEFAULT TRUE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE admins (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  email VARCHAR(150) NOT NULL UNIQUE,
+  password_hash VARCHAR(255) NOT NULL,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 );
 
 INSERT INTO sheets (code, label, type) VALUES
@@ -123,45 +151,3 @@ INSERT INTO cause_dictionary (sheet_id, categorie, libelle, poste_id) VALUES
   (1, 'defaut', 'Perçage mauvais diamètre', 2),
   (1, 'absence', 'Maladie', NULL),
   (1, 'absence', 'RDV médical', NULL);
-
-CREATE TABLE IF NOT EXISTS users (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nom VARCHAR(100) NOT NULL,
-  email VARCHAR(150) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  actif BOOLEAN NOT NULL DEFAULT TRUE,
-  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-);
-
-CREATE TABLE IF NOT EXISTS admins (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  email VARCHAR(150) NOT NULL UNIQUE,
-  password_hash VARCHAR(255) NOT NULL,
-  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-);
-
-INSERT INTO admins (id, email, password_hash) VALUES
-  (1, 'admin@entreprise.com', '$2b$10$cyU4M8OTV1NxyalXjTrFvumms2KlHGTE7Q8Ty4ndX.NqKrPL6O22S')
-ON DUPLICATE KEY UPDATE email = email;
-
-ALTER TABLE cause_selections ADD COLUMN quantite INT NULL;
-
-ALTER TABLE cause_temps
-  ADD COLUMN autre INT NOT NULL DEFAULT 0 AFTER rupture,
-  ADD COLUMN gammes INT NOT NULL DEFAULT 0 AFTER autre,
-  DROP COLUMN objectif;
-
-ALTER TABLE actions ADD COLUMN kpi_key ENUM('S','Q','C','D','P') NOT NULL DEFAULT 'S';
-
-ALTER TABLE planning_tickets
-  ADD COLUMN action_id INT NULL,
-  ADD COLUMN kpi_key ENUM('S','Q','C','D','P') NULL,
-  ADD COLUMN probleme VARCHAR(200) NULL,
-  ADD COLUMN detail_action VARCHAR(200) NULL,
-  ADD COLUMN pilote VARCHAR(100) NULL,
-  ADD COLUMN statut ENUM('a_faire','en_cours','termine') NULL,
-  ADD CONSTRAINT fk_planning_action FOREIGN KEY (action_id) REFERENCES actions(id) ON DELETE CASCADE;
-
-ALTER TABLE retour_client_notifications
-  ADD COLUMN image LONGBLOB NULL,
-  ADD COLUMN image_mime VARCHAR(50) NULL;

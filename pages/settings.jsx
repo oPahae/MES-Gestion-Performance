@@ -1,4 +1,3 @@
-// pages/settings.js
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import {
@@ -22,13 +21,14 @@ import {
   FaUpload,
 } from "react-icons/fa";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/apiClient";
+import { verifyAuth } from "../middlewares/auth";
 
 const TABS = [
-  { key: "listes", label: "Listes déroulantes", icon: FaListUl },
-  { key: "sheets", label: "Feuilles & Postes", icon: FaIndustry },
-  { key: "users", label: "Utilisateurs", icon: FaUsers },
-  { key: "import", label: "Import / Export", icon: FaFileExcel },
-  { key: "compte", label: "Mon compte", icon: FaUserShield },
+  { key: "sheets", label: "Feuilles & Postes", icon: FaIndustry, color: "#1E88E5" },
+  { key: "listes", label: "Listes déroulantes", icon: FaListUl, color: "#8E24AA" },
+  { key: "users", label: "Utilisateurs", icon: FaUsers, color: "#43A047" },
+  { key: "import", label: "Import / Export", icon: FaFileExcel, color: "#FB8C00" },
+  { key: "compte", label: "Mon compte", icon: FaUserShield, color: "#E53935" },
 ];
 
 const CATEGORIES = [
@@ -37,10 +37,13 @@ const CATEGORIES = [
   { key: "absence", label: "Causes d'absence (KPI Personnel)" },
 ];
 
-function SectionCard({ title, children, right }) {
+function SectionCard({ title, children, right, accent = "#3B82F6", className = "" }) {
   return (
-    <div className="bg-white rounded-xl border border-gray-200 shadow-sm p-4 flex flex-col">
-      <div className="flex items-center justify-between mb-3">
+    <div
+      className={`bg-white rounded-2xl border border-gray-100 shadow-sm hover:shadow-md transition-shadow duration-300 p-5 flex flex-col animate-fadein ${className}`}
+      style={{ borderTop: `3px solid ${accent}` }}
+    >
+      <div className="flex items-center justify-between mb-4">
         <h2 className="text-base font-bold tracking-wide text-gray-700">{title}</h2>
         {right}
       </div>
@@ -62,7 +65,7 @@ function TextInput(props) {
   return (
     <input
       {...props}
-      className={`border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-400 ${props.className || ""}`}
+      className={`border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 hover:border-gray-300 ${props.className || ""}`}
     />
   );
 }
@@ -71,7 +74,7 @@ function Select(props) {
   return (
     <select
       {...props}
-      className={`border border-gray-300 rounded-md px-3 py-2 text-sm outline-none focus:border-blue-400 ${props.className || ""}`}
+      className={`border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none transition-all duration-200 focus:border-blue-400 focus:ring-2 focus:ring-blue-100 hover:border-gray-300 cursor-pointer ${props.className || ""}`}
     />
   );
 }
@@ -80,7 +83,7 @@ function PrimaryButton({ children, className, ...props }) {
   return (
     <button
       {...props}
-      className={`flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-md disabled:opacity-50 ${className || ""}`}
+      className={`flex items-center gap-2 bg-gradient-to-br from-blue-500 to-blue-600 hover:from-blue-600 hover:to-blue-700 text-white text-sm font-semibold px-4 py-2 rounded-lg shadow-sm hover:shadow-md transition-all duration-200 active:scale-95 disabled:opacity-50 disabled:hover:shadow-sm disabled:active:scale-100 ${className || ""}`}
     >
       {children}
     </button>
@@ -91,7 +94,9 @@ function IconButton({ children, danger, ...props }) {
   return (
     <button
       {...props}
-      className={`p-2 rounded-md ${danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"}`}
+      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${
+        danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+      }`}
     >
       {children}
     </button>
@@ -103,8 +108,8 @@ function Toast({ toast }) {
   const isError = toast.type === "error";
   return (
     <div
-      className={`flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium shrink-0 ${
-        isError ? "bg-red-50 text-red-600" : "bg-green-50 text-green-700"
+      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shrink-0 shadow-sm animate-toastin ${
+        isError ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-700 border border-green-100"
       }`}
     >
       {isError ? <FaExclamationCircle /> : <FaCheckCircle />}
@@ -115,7 +120,7 @@ function Toast({ toast }) {
 
 export default function SettingsPage() {
   const [allSheets, setAllSheets] = useState([]);
-  const [activeTab, setActiveTab] = useState("listes");
+  const [activeTab, setActiveTab] = useState("sheets");
   const [toast, setToast] = useState(null);
 
   function notify(message, type = "success") {
@@ -128,9 +133,24 @@ export default function SettingsPage() {
   }
   useEffect(refreshSheets, []);
 
+  const activeTabInfo = TABS.find((t) => t.key === activeTab);
+
   return (
     <div className="w-screen h-screen overflow-hidden flex bg-[#EEF1F6] text-xs">
-      <aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
+      <style jsx global>{`
+        @keyframes fadein {
+          from { opacity: 0; transform: translateY(6px); }
+          to { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes toastin {
+          from { opacity: 0; transform: translateX(12px); }
+          to { opacity: 1; transform: translateX(0); }
+        }
+        .animate-fadein { animation: fadein 0.25s ease-out; }
+        .animate-toastin { animation: toastin 0.25s ease-out; }
+      `}</style>
+
+<aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
           <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
             <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center">
@@ -159,24 +179,9 @@ export default function SettingsPage() {
           </nav>
         </div>
         <div className="px-3 pb-4">
-          <div className="px-2 pt-3 pb-2 text-xs tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
-          <button
-            onClick={() => setActiveTab("sheets")}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg ${activeTab === "sheets" ? "bg-[#7A1E22] text-white" : "text-gray-300 hover:bg-white/5"}`}
-          >
-            <FaCog className="text-sm" />
-            Postes
-          </button>
-          <button
-            onClick={() => setActiveTab("users")}
-            className={`w-full flex items-center gap-3 px-3 py-3 rounded-lg ${activeTab === "users" ? "bg-[#7A1E22] text-white" : "text-gray-300 hover:bg-white/5"}`}
-          >
-            <FaUsers className="text-sm" />
-            Utilisateurs
-          </button>
-          <Link href="/" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-white/5 mt-2">
+          <Link href="/api/auth/logout" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-white/5">
             <FaSignOutAlt className="text-sm" />
-            QUITTER
+            LOGOUT
           </Link>
         </div>
       </aside>
@@ -190,13 +195,17 @@ export default function SettingsPage() {
           <nav className="flex items-center gap-2 px-6 pb-3 -mt-1">
             {TABS.map((t) => {
               const Icon = t.icon;
+              const isActive = activeTab === t.key;
               return (
                 <button
                   key={t.key}
                   onClick={() => setActiveTab(t.key)}
-                  className={`flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold ${
-                    activeTab === t.key ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600 hover:bg-gray-200"
-                  }`}
+                  className="flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-semibold transition-all duration-200"
+                  style={
+                    isActive
+                      ? { backgroundColor: t.color, color: "white", boxShadow: `0 4px 10px ${t.color}55` }
+                      : { backgroundColor: "#F3F4F6", color: "#4B5563" }
+                  }
                 >
                   <Icon className="text-sm" />
                   {t.label}
@@ -207,18 +216,20 @@ export default function SettingsPage() {
         </header>
 
         <main className="flex-1 min-h-0 p-4 overflow-auto">
-          {activeTab === "listes" && <ListesTab allSheets={allSheets} notify={notify} />}
-          {activeTab === "sheets" && <SheetsTab allSheets={allSheets} refreshSheets={refreshSheets} notify={notify} />}
-          {activeTab === "users" && <UsersTab notify={notify} />}
-          {activeTab === "import" && <ImportExportTab allSheets={allSheets} notify={notify} />}
-          {activeTab === "compte" && <CompteTab notify={notify} />}
+          <div key={activeTab} className="animate-fadein">
+            {activeTab === "listes" && <ListesTab allSheets={allSheets} notify={notify} accent={activeTabInfo.color} />}
+            {activeTab === "sheets" && <SheetsTab allSheets={allSheets} refreshSheets={refreshSheets} notify={notify} accent={activeTabInfo.color} />}
+            {activeTab === "users" && <UsersTab notify={notify} accent={activeTabInfo.color} />}
+            {activeTab === "import" && <ImportExportTab allSheets={allSheets} notify={notify} accent={activeTabInfo.color} />}
+            {activeTab === "compte" && <CompteTab notify={notify} accent={activeTabInfo.color} />}
+          </div>
         </main>
       </div>
     </div>
   );
 }
 
-function ListesTab({ allSheets, notify }) {
+function ListesTab({ allSheets, notify, accent }) {
   const [sheetId, setSheetId] = useState("");
   const [categorie, setCategorie] = useState("risque");
   const [entries, setEntries] = useState([]);
@@ -287,7 +298,7 @@ function ListesTab({ allSheets, notify }) {
   }
 
   return (
-    <SectionCard title="Listes déroulantes — Risques, types de défaut, causes d'absence">
+    <SectionCard accent={accent} title="Listes déroulantes — Risques, types de défaut, causes d'absence">
       <div className="flex items-center gap-4 mb-4">
         <Field label="Feuille">
           <Select value={sheetId} onChange={(e) => setSheetId(e.target.value)}>
@@ -309,7 +320,7 @@ function ListesTab({ allSheets, notify }) {
         </Field>
       </div>
 
-      <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-lg p-3 bg-gray-50">
+      <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-xl p-3 bg-gradient-to-br from-gray-50 to-white">
         <Field label="Nouvel élément">
           <TextInput value={newLibelle} onChange={(e) => setNewLibelle(e.target.value)} placeholder="Libellé..." />
         </Field>
@@ -349,7 +360,7 @@ function ListesTab({ allSheets, notify }) {
           {entries.map((row) => {
             const isEditing = editingId === row.id;
             return (
-              <tr key={row.id} className="border-b border-gray-50">
+              <tr key={row.id} className="border-b border-gray-50 hover:bg-gray-50/70 transition-colors duration-150">
                 {isEditing ? (
                   <>
                     <td className="py-2 pr-2">
@@ -408,7 +419,7 @@ function ListesTab({ allSheets, notify }) {
   );
 }
 
-function SheetsTab({ allSheets, refreshSheets, notify }) {
+function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
   const [newCode, setNewCode] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [newType, setNewType] = useState("ligne");
@@ -509,8 +520,8 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
 
   return (
     <div className="flex gap-4">
-      <SectionCard className='w-2/3' title="Feuilles (lignes / machines)">
-        <div className="flex flex-wrap items-end gap-3 mb-4 border border-gray-100 rounded-lg p-3 bg-gray-50">
+      <SectionCard accent={accent} className="w-2/3" title="Feuilles (lignes / machines)">
+        <div className="flex flex-wrap items-end gap-3 mb-4 border border-gray-100 rounded-xl p-3 bg-gradient-to-br from-gray-50 to-white">
           <Field label="Code (URL)">
             <TextInput value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="ligneAvion3" />
           </Field>
@@ -541,7 +552,7 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
             {allSheets.map((s) => {
               const isEditing = editingId === s.id;
               return (
-                <tr key={s.id} className="border-b border-gray-50">
+                <tr key={s.id} className="border-b border-gray-50 hover:bg-gray-50/70 transition-colors duration-150">
                   {isEditing ? (
                     <>
                       <td className="py-2 pr-2">
@@ -576,7 +587,15 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
                     <>
                       <td className="py-3 text-gray-500">{s.code}</td>
                       <td className="py-3 text-gray-700">{s.label}</td>
-                      <td className="py-3 text-gray-500 capitalize">{s.type}</td>
+                      <td className="py-3">
+                        <span
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            s.type === "machine" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                          }`}
+                        >
+                          {s.type === "machine" ? "Machine" : "Ligne"}
+                        </span>
+                      </td>
                       <td className="py-3">
                         <div className="flex items-center gap-2">
                           <IconButton onClick={() => startEditSheet(s)}>
@@ -596,19 +615,23 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
         </table>
       </SectionCard>
 
-      <SectionCard className='w-1/3'
+      <SectionCard
+        accent={accent}
+        className="w-1/3"
         title="Postes"
         right={
           <Select value={posteSheetId} onChange={(e) => setPosteSheetId(e.target.value)} className="text-xs">
-            {allSheets.filter(sheet => sheet.type !== "machine").map((s) => (
-              <option key={s.id} value={s.id}>
-                {s.label}
-              </option>
-            ))}
+            {allSheets
+              .filter((sheet) => sheet.type !== "machine")
+              .map((s) => (
+                <option key={s.id} value={s.id}>
+                  {s.label}
+                </option>
+              ))}
           </Select>
         }
       >
-        <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-lg p-3 bg-gray-50">
+        <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-xl p-3 bg-gradient-to-br from-gray-50 to-white">
           <Field label="Nouveau poste">
             <TextInput value={newPoste} onChange={(e) => setNewPoste(e.target.value)} placeholder="Poste 4" />
           </Field>
@@ -635,7 +658,7 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
             {postes.map((p) => {
               const isEditing = editingPosteId === p.id;
               return (
-                <tr key={p.id} className="border-b border-gray-50">
+                <tr key={p.id} className="border-b border-gray-50 hover:bg-gray-50/70 transition-colors duration-150">
                   {isEditing ? (
                     <>
                       <td className="py-2 pr-2">
@@ -682,7 +705,7 @@ function SheetsTab({ allSheets, refreshSheets, notify }) {
   );
 }
 
-function UsersTab({ notify }) {
+function UsersTab({ notify, accent }) {
   const [users, setUsers] = useState([]);
   const [form, setForm] = useState({ nom: "", email: "", password: "" });
   const [editingId, setEditingId] = useState(null);
@@ -734,9 +757,9 @@ function UsersTab({ notify }) {
   }
 
   return (
-    <SectionCard title="Comptes utilisateurs">
+    <SectionCard accent={accent} title="Comptes utilisateurs">
       <p className="text-xs text-gray-400 mb-3">Un utilisateur peut accéder à n&apos;importe quelle feuille, sans restriction.</p>
-      <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-lg p-3 bg-gray-50 flex-wrap">
+      <div className="flex items-end gap-3 mb-4 border border-gray-100 rounded-xl p-3 bg-gradient-to-br from-gray-50 to-white flex-wrap">
         <Field label="Nom">
           <TextInput value={form.nom} onChange={(e) => setForm({ ...form, nom: e.target.value })} placeholder="Nom complet" />
         </Field>
@@ -771,7 +794,7 @@ function UsersTab({ notify }) {
           {users.map((u) => {
             const isEditing = editingId === u.id;
             return (
-              <tr key={u.id} className="border-b border-gray-50 align-top">
+              <tr key={u.id} className="border-b border-gray-50 align-top hover:bg-gray-50/70 transition-colors duration-150">
                 {isEditing ? (
                   <>
                     <td className="py-2 pr-2">
@@ -781,7 +804,7 @@ function UsersTab({ notify }) {
                       <TextInput type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
                     </td>
                     <td className="py-2 pr-2">
-                      <input type="checkbox" checked={draft.actif} onChange={(e) => setDraft({ ...draft, actif: e.target.checked })} className="accent-blue-600" />
+                      <input type="checkbox" checked={draft.actif} onChange={(e) => setDraft({ ...draft, actif: e.target.checked })} className="accent-blue-600 w-4 h-4" />
                     </td>
                     <td className="py-2">
                       <div className="flex flex-col gap-2">
@@ -813,7 +836,7 @@ function UsersTab({ notify }) {
                     <td className="py-3 text-gray-700">{u.nom}</td>
                     <td className="py-3 text-gray-500">{u.email}</td>
                     <td className="py-3">
-                      <span className={`px-3 py-1 rounded-md text-xs font-semibold ${u.actif ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
+                      <span className={`px-3 py-1 rounded-full text-xs font-semibold ${u.actif ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
                         {u.actif ? "Actif" : "Inactif"}
                       </span>
                     </td>
@@ -838,7 +861,7 @@ function UsersTab({ notify }) {
   );
 }
 
-function ImportExportTab({ allSheets, notify }) {
+function ImportExportTab({ allSheets, notify, accent }) {
   const today = new Date().toISOString().slice(0, 10);
   const firstOfMonth = today.slice(0, 8) + "01";
 
@@ -939,7 +962,7 @@ function ImportExportTab({ allSheets, notify }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <SectionCard title="Export Excel">
+      <SectionCard accent={accent} title="Export Excel">
         <div className="flex flex-wrap items-end gap-4 mb-4">
           <Field label="Du">
             <TextInput type="date" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
@@ -954,27 +977,30 @@ function ImportExportTab({ allSheets, notify }) {
         <div>
           <div className="flex items-center justify-between mb-2">
             <span className="text-xs text-gray-500 font-semibold">Feuilles incluses</span>
-            <button onClick={toggleAll} className="text-xs text-blue-600 font-semibold hover:underline">
+            <button onClick={toggleAll} className="text-xs text-blue-600 font-semibold hover:underline transition-all">
               {selectedIds.length === allSheets.length ? "Tout désélectionner" : "Tout sélectionner"}
             </button>
           </div>
           <div className="flex flex-wrap gap-3">
-            {allSheets.map((s) => (
-              <label key={s.id} className="flex items-center gap-2 text-sm text-gray-600 border border-gray-200 rounded-md px-3 py-2">
-                <input
-                  type="checkbox"
-                  checked={selectedIds.includes(s.id)}
-                  onChange={() => toggleSheet(s.id)}
-                  className="accent-blue-600"
-                />
-                {s.label}
-              </label>
-            ))}
+            {allSheets.map((s) => {
+              const checked = selectedIds.includes(s.id);
+              return (
+                <label
+                  key={s.id}
+                  className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border transition-all duration-150 cursor-pointer ${
+                    checked ? "border-orange-300 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
+                >
+                  <input type="checkbox" checked={checked} onChange={() => toggleSheet(s.id)} className="accent-orange-500 w-4 h-4" />
+                  {s.label}
+                </label>
+              );
+            })}
           </div>
         </div>
       </SectionCard>
 
-      <SectionCard title="Import Excel">
+      <SectionCard accent={accent} title="Import Excel">
         <p className="text-xs text-gray-400 mb-3">
           Le fichier doit respecter la structure exportée (feuilles KPI_Params, Causes_Temps, Causes_Selections, Actions).
         </p>
@@ -983,14 +1009,14 @@ function ImportExportTab({ allSheets, notify }) {
             type="file"
             accept=".xlsx,.xls"
             onChange={(e) => setFile(e.target.files?.[0] || null)}
-            className="text-sm"
+            className="text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-600 file:font-semibold hover:file:bg-orange-100 file:transition-colors"
           />
           <PrimaryButton onClick={handleUpload} disabled={uploading}>
             <FaUpload className="text-xs" /> {uploading ? "Import en cours..." : "Importer le fichier"}
           </PrimaryButton>
         </div>
         {importErrors.length > 0 && (
-          <div className="mt-4 border border-red-100 bg-red-50 rounded-lg p-3 max-h-48 overflow-auto">
+          <div className="mt-4 border border-red-100 bg-red-50 rounded-xl p-3 max-h-48 overflow-auto animate-fadein">
             <p className="text-xs font-semibold text-red-600 mb-2">Erreurs détectées ({importErrors.length}) :</p>
             <ul className="list-disc list-inside text-xs text-red-500 flex flex-col gap-1">
               {importErrors.map((e, i) => (
@@ -1004,7 +1030,7 @@ function ImportExportTab({ allSheets, notify }) {
   );
 }
 
-function CompteTab({ notify }) {
+function CompteTab({ notify, accent }) {
   const [currentEmail, setCurrentEmail] = useState("");
   const [currentPassword, setCurrentPassword] = useState("");
   const [newEmail, setNewEmail] = useState("");
@@ -1046,9 +1072,9 @@ function CompteTab({ notify }) {
   }
 
   return (
-    <SectionCard title="Mon compte">
+    <SectionCard accent={accent} title="Mon compte">
       <div className="flex flex-col gap-4 max-w-xs">
-        <p className="text-xs text-gray-400">
+        <p className="text-xs text-gray-400 bg-gray-50 rounded-lg px-3 py-2 border border-gray-100">
           Email actuel : <span className="font-semibold text-gray-600">{currentEmail || "…"}</span>
         </p>
 
@@ -1072,4 +1098,17 @@ function CompteTab({ notify }) {
       </div>
     </SectionCard>
   );
+}
+
+export async function getServerSideProps({ req, res }) {
+  const user = verifyAuth(req, res);
+  if (!user || user.role !== "admin") {
+    return {
+      redirect: {
+        destination: "/login",
+        permanent: false,
+      },
+    };
+  }
+  return { props: {} };
 }
