@@ -1,4 +1,4 @@
-import { query } from "../../lib/db";
+import { query } from "../../lib/db"
 
 async function loadDictionary(sheetId) {
   const rows = await query("SELECT id, categorie, libelle, poste_id FROM cause_dictionary WHERE sheet_id = ? ORDER BY id", [sheetId]);
