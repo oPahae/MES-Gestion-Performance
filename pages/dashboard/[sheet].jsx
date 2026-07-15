@@ -1252,9 +1252,8 @@ export default function DashboardPage({ session }) {
                           <div className="flex items-center gap-1 mt-0.5">
                             <InputWithKeyboard
                               type="number"
-                              readOnly
                               value={paramsQ.quantiteTotale ?? ""}
-                              onChange={() => { }}
+                              onChange={(v) => setDraftField("quantiteTotaleProduite", v)}
                               className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[6px] bg-gray-50"
                             />
                             <span className="text-[6px] text-gray-500">pièce</span>
