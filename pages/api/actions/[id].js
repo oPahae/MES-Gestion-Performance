@@ -10,18 +10,19 @@ export default async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === "PUT") {
-    const { probleme, action, pilote, statut } = req.body;
+    const { probleme, action, pilote, statut, dateFin } = req.body;
     try {
-      await query("UPDATE actions SET probleme = ?, action = ?, pilote = ?, statut = ? WHERE id = ?", [
+      await query("UPDATE actions SET probleme = ?, action = ?, pilote = ?, statut = ?, date_fin = ? WHERE id = ?", [
         probleme,
         action,
         pilote || "",
         fromLabel(statut),
+        dateFin || null,
         id,
       ]);
       await query(
-        "UPDATE planning_tickets SET probleme = ?, detail_action = ?, pilote = ?, statut = ?, texte = ? WHERE action_id = ?",
-        [probleme, action, pilote || "", fromLabel(statut), probleme, id]
+        "UPDATE planning_tickets SET probleme = ?, detail_action = ?, pilote = ?, statut = ?, texte = ?, date_fin = ? WHERE action_id = ?",
+        [probleme, action, pilote || "", fromLabel(statut), probleme, dateFin || null, id]
       );
       res.status(200).json({ ok: true });
     } catch (err) {

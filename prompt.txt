@@ -1,0 +1,89 @@
+je veux créer un siteweb MES de gestion de performance, la page d'acceuil permet de choisir une des feuilles :
+- ligne avion 1
+- ligne avion 2
+- machine de
+ou bien selectionner :
+- supervision hebdomadère
+
+supposons qu'on a choisis une des 3 feuilles, on trouve un tableau de bord complet affichant :
+I. les indicateurs KPI :
+- sécurité (S)
+- qualité (Q)
+- coût (C)
+- délai (D)
+- personel (P)
+chaque KPI est sous-form de cercle, avec le symbol au milieu et contient
+- la première couche : les jours de la période choisis en haut du tableau de bord dans le filtre (dernière semaine, dernier mois, interval précis de temps) sous-forme nombres (1, 2, 3, ...)
+- les couches suivantes : chacune pour la valeur du ce jour d'un paramètre que je vais expliquer par la suite
+puis indique en bas chaque couche signifie quoi
+II. Paramètres des KPIs :
+quand on clique sur une des KPIs il nous permet de saisir ses infos, et le résultat ce calcule automatiquement et s'affiche en temps réel dans la couche identique à jour de aujourd'hui
+1/ S :
+accidents = nombre d'accidents
+risques = nombre de risques
+2/ Q :
+retours clients = nombre de retours
+taux de rebut = nombre rebuts / quantité totale produite
+3/ C :
+- si la feuille est ligne d'avion :
+efficience = quantité produite / quantité objectif
+- si la feuille est machine :
+TRS = quantité produite / quantité objectif
+4/ D :
+PDP = quantité produite / quantité planifiée
+5/ P :
+absents = nombre des absents
+III. Causes de non-performance :
+1/ S :
+place d'injurie = liste déroulante de choix multiple
+risques = liste déroulante de choix multiple initialement vide avec recherche et possibilté d'ajouter un nouveau (sera enregistré tjr dans la bdd)
+2/ Q :
+causes des retours client => sera seulement enregistré dans les notifications, c'est exclus des diagrammes
+type de défaut = liste déroulante de choix multiple initialement vide avec recherche et possibilté d'ajouter un nouveau (sera enregistré tjr dans la bdd), on doit préciser le poste de chacune (chaque feuille contient plusieurs postes (post1, post2,...) dynamique depuis la bdd))
+3/ C :
+temps d'ouverture = en miniutes et sera convertit automatiquement en heures
+temps requis = temps ouverture moins temps planifié saisis en miniutes et sera convertit automatiquement en heures
+temps de fonctionnement = temps requis moins la somme de temps d'arrêt machine et de changement de materiel et de rupture de stock, ils sont aussi saisis en miniutes et sera convertit automatiquement en heures
+temps net = temps de fonctionnement moins quantité produite (déjà saisis dans les paramètres des KPIs) x temps objectif (à saisir) + quantité rebut (déjà saisis dans les paramètres des KPIs) x temps objectif (à saisir)
+temps de travail = temps net moins temps pour produire des produits rebuts
+4/ D :
+tickets à attacher dans un bord, chaque ticket contient un texte
+5/ P :
+causes de l'absence = liste déroulante de choix multiple initialement vide avec recherche et possibilté d'ajouter un nouveau (sera enregistré tjr dans la bdd)
+IV. Parétos :
+cette partie à son propre filtre de temps, initialisé à cette dernière semaine
+1/ S :
+- Bilan d'un bonhomme affichant des points sur sons corps selon la place d'injurie, le boutons est plus en plus grand selon le nombre d'injuries dans la même place, si on survole avec la souris on vois le total d'injuries dans cette place
+- Diagramme de batons pour les risques avec un diagramme ligne combiné qui décrit les risques en fonction du nombre cumulé
+2/ Q :
+- Diagramme de batons pour les types de défaut avec un diagramme ligne combiné qui décrit les types de défaut  en fonction du nombre cumulé
+3/ C :
+- diagramme de batons affichant temps requis, temps de fonctionnement, temps net et temps réel
+4/ D :
+- le bord qui contient les tickets
+5/ P :
+- diagramme des batons qui affiche les causes d'absence
+V. Plan d'actions :
+on peut basculer entre :
+- tableau des problèmes : affiche un tableau (problème, action, pilote, délai, statut), avec insértion d'une ligne, modification et suppression, le tableau concerne les données du jour selectionné
+- planning dynamique : affiche un selecteur de semaines (date) une tableau contenant les jours de la semaine selectionnée, en plus de deux colonnes de semaine suivante et après suivante, pour les colonnes des jours on peut attacher des tickets contenant des textes et visualisé les tickets déjà attachés, mais pour les colonnes des deux semaines suivantes on ne peut que consulter, elles affichent les tâches des jours de la semaine suivante et après suivante
+
+############################################################
+############################################################
+############################################################
+
+Règles techniques :
+- utiliser NextJS avec pages router et pas app router
+- utiliser MySQL pour bdd
+- utiliser TailwindCSS et pas de CSS
+- utiliser icons et pas émojis
+- design très professionel et lisible non compliqué pour l'uitlisateur
+- pas de trop de fichiers non nécessaires
+- pas d'authentification
+- les noms des fichiers en camelCase
+- les noms des tables sql en snake_case
+- aucun commentaire dans le code
+- la page du tableau de bord est non scrollable, tous les éléments doivent s'afficher devant nous
+
+Ce qui est demandé : fournir le projet sous format .zip, prêt à dézipper et lancer
+Remarque : aucune erreur n'est autorisée, car c'est sérieux

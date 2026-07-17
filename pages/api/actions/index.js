@@ -13,7 +13,7 @@ export default async function handler(req, res) {
   if (req.method === "GET") {
     const { sheetId, date, startDate, endDate, kpi } = req.query;
     try {
-      let sql = "SELECT id, kpi_key, date_jour, probleme, action, pilote, statut FROM actions WHERE sheet_id = ?";
+      let sql = "SELECT id, kpi_key, date_jour, date_fin, probleme, action, pilote, statut FROM actions WHERE sheet_id = ?";
       const params = [sheetId];
       if (startDate && endDate) {
         sql += " AND date_jour BETWEEN ? AND ?";
@@ -32,6 +32,9 @@ export default async function handler(req, res) {
         rows.map((r) => ({
           ...r,
           date: r.date_jour instanceof Date ? r.date_jour.toLocaleDateString("fr-CA") : String(r.date_jour).slice(0, 10),
+          dateFin: r.date_fin
+            ? (r.date_fin instanceof Date ? r.date_fin.toLocaleDateString("fr-CA") : String(r.date_fin).slice(0, 10))
+            : null,
           statut: toLabel(r.statut),
         }))
       );
@@ -42,18 +45,28 @@ export default async function handler(req, res) {
   }
 
   if (req.method === "POST") {
-    const { sheetId, date, kpi, probleme, action, pilote, statut } = req.body;
+    const { sheetId, date, dateFin, kpi, probleme, action, pilote, statut } = req.body;
     try {
+      const finalDateFin = dateFin || date;
       const result = await query(
-        "INSERT INTO actions (sheet_id, date_jour, kpi_key, probleme, action, pilote, statut) VALUES (?, ?, ?, ?, ?, ?, ?)",
-        [sheetId, date, kpi, probleme, action, pilote || "", fromLabel(statut || "À faire")]
+        "INSERT INTO actions (sheet_id, date_jour, date_fin, kpi_key, probleme, action, pilote, statut) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+        [sheetId, date, finalDateFin, kpi, probleme, action, pilote || "", fromLabel(statut || "À faire")]
       );
       const actionId = result.insertId;
       await query(
-        "INSERT INTO planning_tickets (sheet_id, date_jour, texte, action_id, kpi_key, probleme, detail_action, pilote, statut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
-        [sheetId, date, probleme, actionId, kpi, probleme, action, pilote || "", fromLabel(statut || "À faire")]
+        "INSERT INTO planning_tickets (sheet_id, date_jour, date_fin, texte, action_id, kpi_key, probleme, detail_action, pilote, statut) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+        [sheetId, date, finalDateFin, probleme, actionId, kpi, probleme, action, pilote || "", fromLabel(statut || "À faire")]
       );
-      res.status(201).json({ id: actionId, kpi_key: kpi, probleme, action, pilote: pilote || "", statut: statut || "À faire" });
+      res.status(201).json({
+        id: actionId,
+        kpi_key: kpi,
+        probleme,
+        action,
+        pilote: pilote || "",
+        statut: statut || "À faire",
+        date,
+        dateFin: finalDateFin,
+      });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }
