@@ -6,8 +6,16 @@ export default async function handler(req, res) {
   if (req.method === "PUT") {
     const { date } = req.body;
     try {
-      await query("UPDATE planning_tickets SET date_jour = ? WHERE id = ?", [date, id]);
-      res.status(200).json({ ok: true });
+      const rows = await query("SELECT action_id FROM planning_tickets WHERE id = ?", [id]);
+      const actionId = rows[0] && rows[0].action_id;
+
+      await query("UPDATE planning_tickets SET date_fin = ? WHERE id = ?", [date, id]);
+
+      if (actionId) {
+        await query("UPDATE actions SET date_fin = ? WHERE id = ?", [date, actionId]);
+      }
+
+      res.status(200).json({ ok: true, actionId });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

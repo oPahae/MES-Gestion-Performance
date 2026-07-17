@@ -655,7 +655,6 @@ export default function DashboardPage({ session }) {
       setParamsDraft(currentKpiParams);
     });
     return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sheet, selectedDateIso]);
 
   useEffect(() => {
@@ -663,24 +662,27 @@ export default function DashboardPage({ session }) {
     const currentKpiParams = allParams[selectedKpi] || {};
     loadedParamsRef.current = JSON.stringify(currentKpiParams);
     setParamsDraft(currentKpiParams);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedKpi]);
 
   useEffect(() => {
     if (!sheet) return;
     if (JSON.stringify(paramsDraft) === loadedParamsRef.current) return;
     if (paramsSaveTimeout.current) clearTimeout(paramsSaveTimeout.current);
-    paramsSaveTimeout.current = setTimeout(() => {
-      apiPost("/api/kpiParams", { sheetId: sheet.id, date: selectedDateIso, kpi: selectedKpi, data: paramsDraft }).then(() => {
-        loadedParamsRef.current = JSON.stringify(paramsDraft);
-        flashSaved(`Données du ${fmtFR(selectedDateIso)} enregistrées automatiquement`);
-        apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}`).then((data) => setAllParams(data || {}));
-        refreshKpiRings();
-        refreshKpiTrend();
-      });
+    paramsSaveTimeout.current = setTimeout(async () => {
+      await apiPost("/api/kpiParams", { sheetId: sheet.id, date: selectedDateIso, kpi: selectedKpi, data: paramsDraft });
+      if (selectedKpi === "Q" || selectedKpi === "C" || selectedKpi === "D") {
+        const linked = ["Q", "C", "D"].filter((k) => k !== selectedKpi);
+        await Promise.all(
+          linked.map((k) => apiPost("/api/kpiParams", { sheetId: sheet.id, date: selectedDateIso, kpi: k, data: allParams[k] || {} }))
+        );
+      }
+      loadedParamsRef.current = JSON.stringify(paramsDraft);
+      flashSaved(`Données du ${fmtFR(selectedDateIso)} enregistrées automatiquement`);
+      apiGet(`/api/kpiParams?sheetId=${sheet.id}&date=${selectedDateIso}`).then((data) => setAllParams(data || {}));
+      refreshKpiRings();
+      refreshKpiTrend();
     }, 600);
     return () => clearTimeout(paramsSaveTimeout.current);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [paramsDraft]);
 
   const paramsQ = allParams.Q || {};
@@ -696,10 +698,7 @@ export default function DashboardPage({ session }) {
     if (field === 'quantiteProduite' && (selectedKpi === 'C' || selectedKpi === 'D')) {
       const newParamsC = { ...(allParams.C || {}), quantiteProduite: value };
       const newParamsD = { ...(allParams.D || {}), quantiteProduite: value };
-      const newParamsQ = {
-        ...(allParams.Q || {}),
-        quantiteTotale: Number(value) || 0
-      };
+      const newParamsQ = { ...(allParams.Q || {}), quantiteTotale: Number(value) || 0 };
       setAllParams(prev => ({ ...prev, C: newParamsC, D: newParamsD, Q: newParamsQ }));
     } else if (field === 'rebuts' && selectedKpi === 'Q') {
       const newParamsQ = {
@@ -710,7 +709,9 @@ export default function DashboardPage({ session }) {
       setAllParams(prev => ({ ...prev, Q: newParamsQ }));
     } else if (field === 'quantiteTotale' && selectedKpi === 'Q') {
       const newParamsQ = { ...(allParams.Q || {}), quantiteTotale: value };
-      setAllParams(prev => ({ ...prev, Q: newParamsQ }));
+      const newParamsC = { ...(allParams.C || {}), quantiteProduite: value };
+      const newParamsD = { ...(allParams.D || {}), quantiteProduite: value };
+      setAllParams(prev => ({ ...prev, Q: newParamsQ, C: newParamsC, D: newParamsD }));
     }
 
     setParamsDraft((prev) => ({ ...prev, [field]: value }));
@@ -907,7 +908,16 @@ export default function DashboardPage({ session }) {
 
   function addRow() {
     if (!sheet) return;
-    apiPost("/api/actions", { sheetId: sheet.id, date: selectedDateIso, kpi: selectedKpi, probleme: "Nouveau problème", action: "Nouvelle action", pilote: "", statut: "À faire" }).then((row) => {
+    apiPost("/api/actions", {
+      sheetId: sheet.id,
+      date: selectedDateIso,
+      dateFin: selectedDateIso,
+      kpi: selectedKpi,
+      probleme: "Nouveau problème",
+      action: "Nouvelle action",
+      pilote: "",
+      statut: "À faire",
+    }).then((row) => {
       setActions((prev) => [...prev, row]);
       setEditingId(row.id);
       setDraft(row);
@@ -959,7 +969,10 @@ export default function DashboardPage({ session }) {
   useEffect(refreshPlanning, [sheet, planningWeekStart, selectedKpi]);
 
   function moveTicket(id, toDate) {
-    apiPut(`/api/planningTickets/${id}`, { date: toDate }).then(refreshPlanning);
+    apiPut(`/api/planningTickets/${id}`, { date: toDate }).then(() => {
+      refreshPlanning();
+      refreshActions();
+    });
   }
 
   const [paretoPeriod, setParetoPeriod] = useState("jour");
@@ -1120,35 +1133,35 @@ export default function DashboardPage({ session }) {
               <section className="bg-white rounded-xl border border-gray-200 shadow-sm px-3 py-2 shrink-0">
                 <h2 className="text-[6px] font-bold tracking-wide text-gray-700 mb-1">I. INDICATEURS KPI</h2>
                 <div className="flex items-stretch gap-2">
-                  <div className="flex items-center justify-around flex-1">
+                  <div className="flex items-start justify-around flex-1">
                     {KPI_ORDER.map((k) => (
-                      <MultiRingGauge
-                        key={k}
-                        kpiKey={k}
-                        ringConfig={kpiRings ? kpiRings.kpis[k] : []}
-                        days={days}
-                        todayIndex={todayIndex}
-                        selectedIndex={selectedIndexInPeriod}
-                        isActive={selectedKpi === k}
-                        onClick={() => setSelectedKpi(k)}
-                      />
+                      <div key={k} className="flex flex-col items-center gap-1 max-w-[115px]">
+                        <MultiRingGauge
+                          kpiKey={k}
+                          ringConfig={kpiRings ? kpiRings.kpis[k] : []}
+                          days={days}
+                          todayIndex={todayIndex}
+                          selectedIndex={selectedIndexInPeriod}
+                          isActive={selectedKpi === k}
+                          onClick={() => setSelectedKpi(k)}
+                        />
+                        <div className="flex flex-wrap justify-center gap-0.5">
+                          <span className="px-1 py-0.5 rounded bg-gray-100 font-medium text-[5px] text-gray-500">
+                            1. Jours
+                          </span>
+                          {getRingConfig(k, sheetType).map((r, i) => (
+                            <span key={r.name} className="px-1 py-0.5 rounded bg-gray-100 font-medium text-[5px] text-gray-500">
+                              {i + 2}. {r.name} ({r.type === "percent" ? "%" : "nb"})
+                            </span>
+                          ))}
+                        </div>
+                      </div>
                     ))}
                   </div>
                 </div>
-                <div className="flex items-start justify-between mt-1.5 pt-1.5 border-t border-gray-100">
+                <div className="flex items-start justify-end mt-1.5 pt-1.5 border-t border-gray-100">
                   <div>
-                    <p className="text-[6px] font-bold text-gray-500 mb-0.5">Anneaux — {KPI_INFO[selectedKpi].label} (du centre vers l&apos;extérieur)</p>
-                    <div className="flex flex-wrap gap-1.5 text-[6px] text-gray-500">
-                      <span className="px-1 py-0.5 rounded bg-gray-100 font-medium">1. Jours de la période (1, 2, 3...)</span>
-                      {getRingConfig(selectedKpi, sheetType).map((r, i) => (
-                        <span key={r.name} className="px-1 py-0.5 rounded bg-gray-100 font-medium">
-                          {i + 2}. {r.name} ({r.type === "percent" ? "%" : "nombre"})
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-                  <div>
-                    <p className="text-[6px] font-bold text-gray-500 mb-0.5">Signification des couleurs</p>
+                    {/* <p className="text-[6px] font-bold text-gray-500 mb-0.5">Signification des couleurs</p> */}
                     <div className="flex flex-wrap gap-1.5 text-[6px] text-gray-500">
                       {STATUS_LEGEND.map((s) => (
                         <span key={s.key} className="flex items-center gap-1">
@@ -1213,11 +1226,10 @@ export default function DashboardPage({ session }) {
             </div>
           </div>
 
-          <section className="grid grid-cols-12 gap-2" style={{ minHeight: 190 }}>
+          <section className="grid grid-cols-12 gap-2" style={{ minHeight: 180 }}>
             <div className="col-span-8 bg-white rounded-xl border border-gray-200 shadow-sm p-2 flex flex-col min-h-0">
-              <h2 className="text-[6px] font-bold tracking-wide text-gray-700">II. PARAMÈTRES & CAUSES DE NON-PERFORMANCE</h2>
-              <p className="text-[5px] text-gray-400 mb-1.5">Données du {fmtFR(selectedDateIso)}</p>
-
+              <h2 className="text-[6px] font-bold tracking-wide text-gray-700 mb-1.5">II. PARAMÈTRES & CAUSES DE NON-PERFORMANCE</h2>
+              {/* <p className="text-[5px] text-gray-400 mb-1.5">Données du {fmtFR(selectedDateIso)}</p> */}
               <div className="flex gap-1.5 flex-1 min-h-0">
                 <div className="flex flex-col gap-1 w-[60px] shrink-0">
                   {KPI_ORDER.map((k) => (
@@ -1253,8 +1265,8 @@ export default function DashboardPage({ session }) {
                             <InputWithKeyboard
                               type="number"
                               value={paramsQ.quantiteTotale ?? ""}
-                              onChange={(v) => setDraftField("quantiteTotaleProduite", v)}
-                              className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[6px] bg-gray-50"
+                              onChange={(e) => setDraftField("quantiteTotale", e.target.value === "" ? "" : Number(e.target.value))}
+                              className="w-12 border border-gray-300 rounded-md px-1 py-1 text-[6px]"
                             />
                             <span className="text-[6px] text-gray-500">pièce</span>
                           </div>
@@ -1408,11 +1420,11 @@ export default function DashboardPage({ session }) {
                           <TimeResult label="Temps net" hours={toH(tempsNetMin)} />
                           <TimeResult label="Temps de ralentissement" hours={toH(tempsRalentissementMin)} />
                         </div>
-                        /* {tempsRalentissementMin < 0 &&
+                        {/* {tempsRalentissementMin < 0 &&
                           <div className="w-full flex justify-center items-center gap-1 text-red-500 font-bold mt-2">
                             <FaExclamationTriangle size={8} className="-translate-y-[1px]" />Impossible de produire cette quantité dans ce temps de fonctionnement
                           </div>
-                        } */
+                        } */}
                       </div>
                     )}
 
@@ -1537,6 +1549,7 @@ export default function DashboardPage({ session }) {
                           <th className="py-1 font-semibold">Problème</th>
                           <th className="py-1 font-semibold">Action</th>
                           <th className="py-1 font-semibold">Pilote</th>
+                          <th className="py-1 font-semibold">Date de fin</th>
                           <th className="py-1 font-semibold">Statut</th>
                           <th className="py-1 font-semibold"></th>
                         </tr>
@@ -1577,6 +1590,14 @@ export default function DashboardPage({ session }) {
                                     />
                                   </td>
                                   <td className="py-1 pr-0.5">
+                                    <input
+                                      type="date"
+                                      value={draft.dateFin || ""}
+                                      onChange={(e) => setDraft({ ...draft, dateFin: e.target.value })}
+                                      className="w-full border border-gray-200 rounded px-1 py-0.5 text-[6px]"
+                                    />
+                                  </td>
+                                  <td className="py-1 pr-0.5">
                                     <select value={draft.statut} onChange={(e) => setDraft({ ...draft, statut: e.target.value })} className="w-full border border-gray-200 rounded px-0.5 py-0.5 text-[6px]">
                                       <option>À faire</option>
                                       <option>En cours</option>
@@ -1594,6 +1615,7 @@ export default function DashboardPage({ session }) {
                                   <td className="py-1 text-gray-700">{row.probleme}</td>
                                   <td className="py-1 text-gray-500">{row.action}</td>
                                   <td className="py-1 text-gray-500">{row.pilote}</td>
+                                  <td className="py-1 text-gray-500">{row.dateFin ? fmtFR(row.dateFin) : "–"}</td>
                                   <td className="py-1">
                                     <span
                                       className={`px-1 py-0.5 rounded-md text-[5px] font-semibold ${row.statut === "En cours" ? "bg-orange-100 text-orange-600" : row.statut === "Terminé" ? "bg-green-100 text-green-600" : "bg-blue-50 text-blue-500"
@@ -1662,14 +1684,14 @@ export default function DashboardPage({ session }) {
                               draggable
                               onDragStart={() => setDragInfo({ id: t.id })}
                               onDragEnd={() => setDragInfo(null)}
-                              className={`rounded-md border-y-2 px-1 py-1 cursor-grab active:cursor-grabbing shadow-sm ${t.statut === "En cours" ? "bg-orange-50 border-orange-400" : t.statut === "Terminé" ? "bg-green-50 border-green-400" : "bg-blue-50 border-blue-400"
+                              className={`rounded-md text-[4px] border-t-2 px-1 py-1 cursor-grab active:cursor-grabbing shadow-sm ${t.statut === "En cours" ? "bg-orange-50 border-orange-400" : t.statut === "Terminé" ? "bg-green-50 border-green-400" : "bg-blue-50 border-blue-400"
                                 }`}
                             >
                               <div className="font-semibold text-gray-700 break-words whitespace-normal">{t.probleme}</div>
                               {t.detailAction && <div className="text-gray-500 break-words whitespace-normal">{t.detailAction}</div>}
-                              <div className="flex items-center justify-between mt-0.5">
-                                {t.pilote && <span className="text-[4px] bg-white border border-gray-200 rounded-full px-1 py-0.5 text-gray-500">{t.pilote}</span>}
-                                {t.statut && <span className="text-[4px] font-semibold text-gray-400">{t.statut}</span>}
+                              <div className="flex flex-col gap-0.5 items-center justify-between mt-0.5">
+                                {t.pilote && <span className="text-[2px] bg-white border border-gray-200 rounded-full px-1 py-0.5 text-gray-500">{t.pilote}</span>}
+                                {t.statut && <span className="text-[2px] font-semibold text-gray-400">{t.statut}</span>}
                               </div>
                             </div>
                           ))}

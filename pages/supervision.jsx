@@ -475,32 +475,32 @@ export default function SupervisionPage({ session }) {
           <div className="w-2/3 flex flex-col gap-2 min-w-0">
             <section className="bg-white rounded-xl border border-gray-200 shadow-sm px-3 py-2 shrink-0">
               <h2 className="text-[6px] font-bold tracking-wide text-gray-700 mb-1">I. INDICATEURS KPI</h2>
-              <div className="flex items-center justify-around">
+              <div className="flex items-start justify-around">
                 {KPI_ORDER.map((k) => (
-                  <MultiRingGauge
-                    key={k}
-                    kpiKey={k}
-                    ringConfig={kpiWeekly ? kpiWeekly.kpis[k] : []}
-                    weeks={trailingWeeks}
-                    todayWeekIndex={todayWeekIndex}
-                    selectedWeekIndex={selectedWeekIndex}
-                    isActive={selectedKpi === k}
-                    onClick={() => setSelectedKpi(k)}
-                  />
+                  <div key={k} className="flex flex-col items-center gap-1 max-w-[115px]">
+                    <MultiRingGauge
+                      kpiKey={k}
+                      ringConfig={kpiWeekly ? kpiWeekly.kpis[k] : []}
+                      weeks={trailingWeeks}
+                      todayWeekIndex={todayWeekIndex}
+                      selectedWeekIndex={selectedWeekIndex}
+                      isActive={selectedKpi === k}
+                      onClick={() => setSelectedKpi(k)}
+                    />
+                    <div className="flex flex-wrap justify-center gap-0.5">
+                      <span className="px-1 py-0.5 rounded bg-gray-100 font-medium text-[5px] text-gray-500">
+                        1. Semaines
+                      </span>
+                      {getRingConfig(k, sheetType).map((r, i) => (
+                        <span key={r.name} className="px-1 py-0.5 rounded bg-gray-100 font-medium text-[5px] text-gray-500">
+                          {i + 2}. {r.name} ({r.type === "percent" ? "%" : "nb"})
+                        </span>
+                      ))}
+                    </div>
+                  </div>
                 ))}
               </div>
-              <div className="flex items-start justify-between mt-1.5 pt-1.5 border-t border-gray-100">
-                <div>
-                  <p className="text-[6px] font-bold text-gray-500 mb-0.5">Anneaux — {KPI_INFO[selectedKpi].label} (8 dernières semaines jusqu&apos;à la semaine sélectionnée)</p>
-                  <div className="flex flex-wrap gap-1.5 text-[6px] text-gray-500">
-                    <span className="px-1 py-0.5 rounded bg-gray-100 font-medium">1. Semaines (S1 → S8)</span>
-                    {getRingConfig(selectedKpi, sheetType).map((r, i) => (
-                      <span key={r.name} className="px-1 py-0.5 rounded bg-gray-100 font-medium">
-                        {i + 2}. {r.name} ({r.type === "percent" ? "%" : "nombre"})
-                      </span>
-                    ))}
-                  </div>
-                </div>
+              <div className="flex items-start justify-end mt-1.5 pt-1.5 border-t border-gray-100">
                 <div>
                   <p className="text-[6px] font-bold text-gray-500 mb-0.5">Signification des couleurs</p>
                   <div className="flex flex-wrap gap-1.5 text-[6px] text-gray-500">
