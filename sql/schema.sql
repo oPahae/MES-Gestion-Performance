@@ -153,3 +153,62 @@ INSERT INTO cause_dictionary (sheet_id, categorie, libelle, poste_id) VALUES
   (1, 'defaut', 'Perçage mauvais diamètre', 2),
   (1, 'absence', 'Maladie', NULL),
   (1, 'absence', 'RDV médical', NULL);
+
+CREATE TABLE problemes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  numero VARCHAR(30) NOT NULL UNIQUE,
+  probleme VARCHAR(255) NOT NULL DEFAULT '',
+  ligne VARCHAR(150) NOT NULL DEFAULT '',
+  pilote VARCHAR(150) NOT NULL DEFAULT '',
+  date_ouverture DATETIME NOT NULL,
+  quoi TEXT NULL,
+  qui TEXT NULL,
+  ou TEXT NULL,
+  quand_txt TEXT NULL,
+  combien TEXT NULL,
+  comment_txt TEXT NULL,
+  pourquoi TEXT NULL,
+  autre_ligne_existe BOOLEAN NOT NULL DEFAULT FALSE,
+  validation_nom VARCHAR(150) NULL,
+  validation_date DATE NULL,
+  validation_signature BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE probleme_equipe (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  probleme_id INT NOT NULL,
+  nom VARCHAR(150) NOT NULL,
+  FOREIGN KEY (probleme_id) REFERENCES problemes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE probleme_causes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  probleme_id INT NOT NULL,
+  bloc ENUM('milieu','methode','machine','main_oeuvre','matiere') NOT NULL,
+  parent_id INT NULL,
+  niveau INT NOT NULL DEFAULT 0,
+  texte VARCHAR(255) NOT NULL,
+  cause_racine BOOLEAN NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (probleme_id) REFERENCES problemes(id) ON DELETE CASCADE,
+  FOREIGN KEY (parent_id) REFERENCES probleme_causes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE probleme_actions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  probleme_id INT NOT NULL,
+  type ENUM('d3','d56','d7_transverse','d7_autre_ligne') NOT NULL,
+  cause_id INT NULL,
+  ligne VARCHAR(150) NULL,
+  action VARCHAR(255) NOT NULL DEFAULT '',
+  pilote VARCHAR(150) NOT NULL DEFAULT '',
+  date_debut DATE NULL,
+  date_fin DATE NULL,
+  date_replanification DATE NULL,
+  statut ENUM('a_faire','en_cours','termine') NOT NULL DEFAULT 'a_faire',
+  piece_jointe LONGBLOB NULL,
+  piece_jointe_mime VARCHAR(100) NULL,
+  piece_jointe_nom VARCHAR(200) NULL,
+  FOREIGN KEY (probleme_id) REFERENCES problemes(id) ON DELETE CASCADE,
+  FOREIGN KEY (cause_id) REFERENCES probleme_causes(id) ON DELETE SET NULL
+);
