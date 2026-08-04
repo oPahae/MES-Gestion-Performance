@@ -95,9 +95,8 @@ function IconButton({ children, danger, ...props }) {
   return (
     <button
       {...props}
-      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${
-        danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-      }`}
+      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+        }`}
     >
       {children}
     </button>
@@ -109,9 +108,8 @@ function Toast({ toast }) {
   const isError = toast.type === "error";
   return (
     <div
-      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shrink-0 shadow-sm animate-toastin ${
-        isError ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-700 border border-green-100"
-      }`}
+      className={`flex items-center gap-3 rounded-xl px-4 py-3 text-sm font-medium shrink-0 shadow-sm animate-toastin ${isError ? "bg-red-50 text-red-600 border border-red-100" : "bg-green-50 text-green-700 border border-green-100"
+        }`}
     >
       {isError ? <FaExclamationCircle /> : <FaCheckCircle />}
       {toast.message}
@@ -130,7 +128,7 @@ export default function SettingsPage() {
   }
 
   function refreshSheets() {
-    apiGet("/api/sheets").then(setAllSheets).catch(() => {});
+    apiGet("/api/sheets").then(setAllSheets).catch(() => { });
   }
   useEffect(refreshSheets, []);
 
@@ -151,7 +149,7 @@ export default function SettingsPage() {
         .animate-toastin { animation: toastin 0.25s ease-out; }
       `}</style>
 
-<aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
+      <aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
           <Link href="/" className="flex flex-col items-center gap-2 px-5 py-5 border-b border-white/10">
             <img src="/banner.png" className="w-full" />
@@ -244,13 +242,13 @@ function ListesTab({ allSheets, notify, accent }) {
 
   function refreshEntries() {
     if (!sheetId) return;
-    apiGet(`/api/dictionary?sheetId=${sheetId}&categorie=${categorie}`).then(setEntries).catch(() => {});
+    apiGet(`/api/dictionary?sheetId=${sheetId}&categorie=${categorie}`).then(setEntries).catch(() => { });
   }
   useEffect(refreshEntries, [sheetId, categorie]);
 
   useEffect(() => {
     if (!sheetId) return;
-    apiGet(`/api/postes?sheetId=${sheetId}`).then(setPostes).catch(() => {});
+    apiGet(`/api/postes?sheetId=${sheetId}`).then(setPostes).catch(() => { });
   }, [sheetId]);
 
   function addEntry() {
@@ -437,7 +435,7 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
 
   function refreshPostes() {
     if (!posteSheetId) return;
-    apiGet(`/api/postes?sheetId=${posteSheetId}`).then(setPostes).catch(() => {});
+    apiGet(`/api/postes?sheetId=${posteSheetId}`).then(setPostes).catch(() => { });
   }
   useEffect(refreshPostes, [posteSheetId]);
 
@@ -588,9 +586,8 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
                       <td className="py-3 text-gray-700">{s.label}</td>
                       <td className="py-3">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                            s.type === "machine" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
-                          }`}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.type === "machine" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                            }`}
                         >
                           {s.type === "machine" ? "Machine" : "Ligne"}
                         </span>
@@ -706,7 +703,7 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
 
 function UsersTab({ notify, accent }) {
   const [users, setUsers] = useState([]);
-  const [form, setForm] = useState({ nom: "", email: "", password: "" });
+  const [form, setForm] = useState({ nom: "", email: "", password: "", role: "chef_equipe" });
   const [editingId, setEditingId] = useState(null);
   const [draft, setDraft] = useState(null);
 
@@ -723,7 +720,7 @@ function UsersTab({ notify, accent }) {
     apiPost("/api/users", form)
       .then((row) => {
         setUsers((prev) => [...prev, row]);
-        setForm({ nom: "", email: "", password: "" });
+        setForm({ nom: "", email: "", password: "", role: "chef_equipe" });
         notify("Utilisateur créé.");
       })
       .catch((e) => notify(e.message || "Erreur lors de la création.", "error"));
@@ -731,7 +728,7 @@ function UsersTab({ notify, accent }) {
 
   function startEdit(u) {
     setEditingId(u.id);
-    setDraft({ nom: u.nom, email: u.email, actif: !!u.actif, password: "" });
+    setDraft({ nom: u.nom, email: u.email, actif: !!u.actif, password: "", role: u.role || "chef_equipe" });
   }
 
   function saveEdit(id) {
@@ -768,6 +765,14 @@ function UsersTab({ notify, accent }) {
         <Field label="Mot de passe">
           <TextInput type="password" value={form.password} onChange={(e) => setForm({ ...form, password: e.target.value })} placeholder="min. 6 caractères" />
         </Field>
+        <Field label="Rôle">
+          <Select value={form.role} onChange={(e) => setForm({ ...form, role: e.target.value })}>
+            <option value="logistique">Logistique</option>
+            <option value="qualite">Contrôle de qualité</option>
+            <option value="methodiste">Méthodiste</option>
+            <option value="chef_equipe">Chef d&apos;équipe</option>
+          </Select>
+        </Field>
         <PrimaryButton onClick={addUser}>
           <FaPlus className="text-xs" /> Créer
         </PrimaryButton>
@@ -778,6 +783,7 @@ function UsersTab({ notify, accent }) {
           <tr className="text-gray-400 text-left border-b border-gray-100">
             <th className="py-2 font-semibold">Nom</th>
             <th className="py-2 font-semibold">Email</th>
+            <th className="py-2 font-semibold">Rôle</th>
             <th className="py-2 font-semibold">Actif</th>
             <th className="py-2 font-semibold w-28"></th>
           </tr>
@@ -785,13 +791,19 @@ function UsersTab({ notify, accent }) {
         <tbody>
           {users.length === 0 && (
             <tr>
-              <td colSpan={4} className="text-center text-gray-300 py-6 text-xs">
+              <td colSpan={5} className="text-center text-gray-300 py-6 text-xs">
                 Aucun utilisateur.
               </td>
             </tr>
           )}
           {users.map((u) => {
             const isEditing = editingId === u.id;
+            const roleLabels = {
+              logistique: "Logistique",
+              qualite: "Contrôle de qualité",
+              methodiste: "Méthodiste",
+              chef_equipe: "Chef d'équipe",
+            };
             return (
               <tr key={u.id} className="border-b border-gray-50 align-top hover:bg-gray-50/70 transition-colors duration-150">
                 {isEditing ? (
@@ -801,6 +813,14 @@ function UsersTab({ notify, accent }) {
                     </td>
                     <td className="py-2 pr-2">
                       <TextInput type="email" value={draft.email} onChange={(e) => setDraft({ ...draft, email: e.target.value })} />
+                    </td>
+                    <td className="py-2 pr-2">
+                      <Select value={draft.role} onChange={(e) => setDraft({ ...draft, role: e.target.value })}>
+                        <option value="logistique">Logistique</option>
+                        <option value="qualite">Contrôle de qualité</option>
+                        <option value="methodiste">Méthodiste</option>
+                        <option value="chef_equipe">Chef d&apos;équipe</option>
+                      </Select>
                     </td>
                     <td className="py-2 pr-2">
                       <input type="checkbox" checked={draft.actif} onChange={(e) => setDraft({ ...draft, actif: e.target.checked })} className="accent-blue-600 w-4 h-4" />
@@ -834,6 +854,11 @@ function UsersTab({ notify, accent }) {
                   <>
                     <td className="py-3 text-gray-700">{u.nom}</td>
                     <td className="py-3 text-gray-500">{u.email}</td>
+                    <td className="py-3">
+                      <span className="px-2.5 py-1 rounded-full text-xs font-semibold bg-blue-50 text-blue-600">
+                        {roleLabels[u.role] || u.role || "—"}
+                      </span>
+                    </td>
                     <td className="py-3">
                       <span className={`px-3 py-1 rounded-full text-xs font-semibold ${u.actif ? "bg-green-100 text-green-600" : "bg-gray-100 text-gray-500"}`}>
                         {u.actif ? "Actif" : "Inactif"}
@@ -1007,9 +1032,8 @@ function ImportExportTab({ allSheets, notify, accent }) {
               return (
                 <label
                   key={s.id}
-                  className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border transition-all duration-150 cursor-pointer ${
-                    checked ? "border-orange-300 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
-                  }`}
+                  className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border transition-all duration-150 cursor-pointer ${checked ? "border-orange-300 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                    }`}
                 >
                   <input type="checkbox" checked={checked} onChange={() => toggleSheet(s.id)} className="accent-orange-500 w-4 h-4" />
                   {s.label}
@@ -1104,7 +1128,7 @@ function CompteTab({ notify, accent }) {
   const [confirmPassword, setConfirmPassword] = useState("");
 
   function refresh() {
-    apiGet("/api/admin").then((row) => setCurrentEmail(row.email)).catch(() => {});
+    apiGet("/api/admin").then((row) => setCurrentEmail(row.email)).catch(() => { });
   }
   useEffect(refresh, []);
 

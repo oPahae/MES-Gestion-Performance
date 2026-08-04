@@ -5,13 +5,13 @@ export default async function handler(req, res) {
 
   if (req.method === "POST") {
     try {
-      const { nom } = req.body;
+      const { nom, role } = req.body;
       if (!nom || !nom.trim()) {
         res.status(400).json({ error: "Nom requis" });
         return;
       }
-      const result = await query("INSERT INTO probleme_equipe (probleme_id, nom) VALUES (?, ?)", [id, nom.trim()]);
-      res.status(201).json({ id: result.insertId, nom: nom.trim() });
+      const result = await query("INSERT INTO probleme_equipe (probleme_id, nom, role) VALUES (?, ?, ?)", [id, nom.trim(), role || null]);
+      res.status(201).json({ id: result.insertId, nom: nom.trim(), role: role || null });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

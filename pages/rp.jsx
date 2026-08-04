@@ -1,7 +1,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
-import { FaCogs, FaPlane, FaChartBar, FaSignOutAlt, FaPlus, FaClipboardList, FaUsers } from "react-icons/fa";
+import { FaCogs, FaPlane, FaChartBar, FaSignOutAlt, FaPlus, FaClipboardList, FaUsers, FaCog } from "react-icons/fa";
 import { apiGet } from "../lib/apiClient";
 import { fmtLead } from "../lib/problemeLogic";
 import { verifyAuth } from "../middlewares/auth";
@@ -19,18 +19,18 @@ function statutColor(statut) {
   return "bg-orange-100 text-orange-600";
 }
 
-export default function ResolutionProblemesPage() {
+export default function ResolutionProblemesPage({ session }) {
   const router = useRouter();
   const [allSheets, setAllSheets] = useState([]);
   const [problemes, setProblemes] = useState([]);
   const [, setNow] = useState(Date.now());
 
   function refresh() {
-    apiGet("/api/problemes").then(setProblemes).catch(() => {});
+    apiGet("/api/problemes").then(setProblemes).catch(() => { });
   }
 
   useEffect(() => {
-    apiGet("/api/sheets").then(setAllSheets).catch(() => {});
+    apiGet("/api/sheets").then(setAllSheets).catch(() => { });
     refresh();
   }, []);
 
@@ -74,6 +74,13 @@ export default function ResolutionProblemesPage() {
           </nav>
         </div>
         <div className="px-3 pb-4">
+          <div className="px-1 pt-1.5 pb-1 text-[10px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
+          {session.isAdmin &&
+            <Link href="/settings" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-white/5">
+              <FaCog className="text-sm" />
+              Paramètres
+            </Link>
+          }
           <Link href="/api/auth/logout" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-white/5">
             <FaSignOutAlt className="text-sm" />
             LOGOUT
@@ -128,7 +135,7 @@ export default function ResolutionProblemesPage() {
                     <td className="py-3 text-gray-500">{p.pilote || "—"}</td>
                     <td className="py-3 text-gray-500">{p.ligne || "—"}</td>
                     <td className="py-3">
-                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statutColor(p.statut)}`}>{p.statut}</span>
+                      <span className={`px-2.5 py-1 rounded-full text-xs font-semibold ${statutColor(p.statut)}`}>{p.statut.split("–")[0]}</span>
                     </td>
                     <td className="py-3 text-gray-500">{fmtDateTime(p.date_ouverture)}</td>
                     <td className="py-3 text-gray-500 font-mono">{fmtLead(p.date_ouverture)}</td>
@@ -152,7 +159,19 @@ export default function ResolutionProblemesPage() {
 export async function getServerSideProps({ req, res }) {
   const user = verifyAuth(req, res);
   if (!user) {
-    return { redirect: { destination: "/login", permanent: false } };
+    return {
+      redirect: {
+        destination: "/login",
+        permanent: false,
+      },
+    };
   }
-  return { props: {} };
+  return {
+    props: {
+      session: {
+        nom: user.nom,
+        isAdmin: user.role === "admin",
+      }
+    }
+  };
 }

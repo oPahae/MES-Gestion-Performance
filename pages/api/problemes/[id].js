@@ -9,16 +9,12 @@ async function loadFull(id) {
   );
   if (!rows.length) return null;
   const p = rows[0];
-  const equipe = await query("SELECT id, nom FROM probleme_equipe WHERE probleme_id = ? ORDER BY id", [id]);
+  const equipe = await query("SELECT id, nom, role FROM probleme_equipe WHERE probleme_id = ? ORDER BY id", [id]);
   const causes = await query(
     "SELECT id, bloc, parent_id, niveau, texte, cause_racine FROM probleme_causes WHERE probleme_id = ? ORDER BY id",
     [id]
   );
-  const actions = await query(
-    `SELECT id, type, cause_id, ligne, statut, (piece_jointe IS NOT NULL) AS hasFile
-   FROM probleme_actions WHERE probleme_id = ?`,
-    [id]
-  );
+  const actions = await query("SELECT id, type, cause_id FROM probleme_actions WHERE probleme_id = ?", [id]);
   return {
     id: p.id,
     numero: p.numero,
@@ -37,7 +33,7 @@ async function loadFull(id) {
     validation_nom: p.validation_nom || "",
     validation_date: p.validation_date,
     validation_signature: !!p.validation_signature,
-    equipe: equipe.map((e) => ({ id: e.id, nom: e.nom })),
+    equipe: equipe.map((e) => ({ id: e.id, nom: e.nom, role: e.role })),
     causes: causes.map((c) => ({
       id: c.id,
       bloc: c.bloc,
@@ -46,14 +42,7 @@ async function loadFull(id) {
       texte: c.texte,
       cause_racine: !!c.cause_racine,
     })),
-    actions: actions.map((a) => ({
-      id: a.id,
-      type: a.type,
-      cause_id: a.cause_id,
-      ligne: a.ligne,
-      statut: a.statut,
-      hasFile: !!a.hasFile,
-    })),
+    actions: actions.map((a) => ({ id: a.id, type: a.type, cause_id: a.cause_id })),
   };
 }
 

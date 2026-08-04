@@ -1,36 +1,40 @@
 import bcrypt from "bcryptjs";
 import { query } from "../../../lib/db";
+import { USER_ROLES } from "../../../lib/userLogic";
 
 export default async function handler(req, res) {
   const { id } = req.query;
 
   if (req.method === "PUT") {
-    const { nom, email, actif, password } = req.body || {};
+    const { nom, email, actif, password, role } = req.body || {};
     if (!nom || !email) {
       return res.status(400).json({ error: "nom et email sont requis." });
     }
+    const finalRole = role && USER_ROLES.includes(role) ? role : undefined;
     try {
       if (password) {
         if (password.length < 6) {
           return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
         }
         const passwordHash = await bcrypt.hash(password, 10);
-        await query("UPDATE users SET nom = ?, email = ?, actif = ?, password_hash = ? WHERE id = ?", [
+        await query("UPDATE users SET nom = ?, email = ?, actif = ?, password_hash = ?, role = COALESCE(?, role) WHERE id = ?", [
           nom.trim(),
           email.trim().toLowerCase(),
           actif ?? true,
           passwordHash,
+          finalRole || null,
           id,
         ]);
       } else {
-        await query("UPDATE users SET nom = ?, email = ?, actif = ? WHERE id = ?", [
+        await query("UPDATE users SET nom = ?, email = ?, actif = ?, role = COALESCE(?, role) WHERE id = ?", [
           nom.trim(),
           email.trim().toLowerCase(),
           actif ?? true,
+          finalRole || null,
           id,
         ]);
       }
-      const [row] = await query("SELECT id, nom, email, actif, created_at FROM users WHERE id = ?", [id]);
+      const [row] = await query("SELECT id, nom, email, role, actif, created_at FROM users WHERE id = ?", [id]);
       if (!row) return res.status(404).json({ error: "Utilisateur introuvable." });
       return res.status(200).json(row);
     } catch (e) {
@@ -43,9 +47,6 @@ export default async function handler(req, res) {
 
   if (req.method === "DELETE") {
     await query("DELETE FROM users WHERE id = ?", [id]);
-    // Réponse JSON explicite (200) plutôt que 204 sans corps : certains clients fetch
-    // plantent en essayant de parser un corps vide en JSON, ce qui remontait
-    // comme une fausse "erreur" côté interface alors que la suppression avait réussi.
     return res.status(200).json({ success: true, id: Number(id) });
   }
 
