@@ -1,30 +1,32 @@
 import bcrypt from "bcryptjs";
 import { query } from "../../../lib/db";
+import { USER_ROLES } from "../../../lib/userLogic";
 
 export default async function handler(req, res) {
   if (req.method === "GET") {
     const rows = await query(
-      "SELECT id, nom, email, actif, created_at FROM users ORDER BY nom ASC"
+      "SELECT id, nom, email, role, actif, created_at FROM users ORDER BY nom ASC"
     );
     return res.status(200).json(rows);
   }
 
   if (req.method === "POST") {
-    const { nom, email, password } = req.body || {};
+    const { nom, email, password, role } = req.body || {};
     if (!nom || !email || !password) {
       return res.status(400).json({ error: "nom, email et mot de passe sont requis." });
     }
     if (password.length < 6) {
       return res.status(400).json({ error: "Le mot de passe doit contenir au moins 6 caractères." });
     }
+    const finalRole = role && USER_ROLES.includes(role) ? role : "chef_equipe";
     try {
       const passwordHash = await bcrypt.hash(password, 10);
       const result = await query(
-        "INSERT INTO users (nom, email, password_hash) VALUES (?, ?, ?)",
-        [nom.trim(), email.trim().toLowerCase(), passwordHash]
+        "INSERT INTO users (nom, email, password_hash, role) VALUES (?, ?, ?, ?)",
+        [nom.trim(), email.trim().toLowerCase(), passwordHash, finalRole]
       );
       const [row] = await query(
-        "SELECT id, nom, email, actif, created_at FROM users WHERE id = ?",
+        "SELECT id, nom, email, role, actif, created_at FROM users WHERE id = ?",
         [result.insertId]
       );
       return res.status(201).json(row);

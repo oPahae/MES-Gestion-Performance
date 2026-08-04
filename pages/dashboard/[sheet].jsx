@@ -21,6 +21,7 @@ import {
   FaChevronLeft,
   FaChevronRight,
   FaExclamationTriangle,
+  FaClipboardList,
 } from "react-icons/fa";
 import {
   ResponsiveContainer,
@@ -44,7 +45,11 @@ import {
   PLACE_COORDS,
   getRingConfig,
   computeQuantiteObjectif,
+  URGENCE_INFO,
+  TEMPS_RALENTISSEMENT_ALERT_RATIO,
+  TEMPS_FORMULAS,
 } from "../../lib/kpiLogic";
+import UserSelect from "../../components/UserSelect";
 import { verifyAuth } from "../../middlewares/auth";
 
 function polarToCartesian(cx, cy, r, angleDeg) {
@@ -531,9 +536,9 @@ function NumField({ label, unit, value, onChange, compact }) {
     </div>
   );
 }
-function TimeResult({ label, hours }) {
+function TimeResult({ label, hours, formula }) {
   return (
-    <div className="bg-gray-50 rounded-lg px-1 py-1 text-center">
+    <div className="bg-gray-50 rounded-lg px-1 py-1 text-center" title={formula || undefined}>
       <div className="text-[5px] text-gray-400">{label}</div>
       <div className="text-[7px] font-bold text-gray-700">{hours} h</div>
     </div>
@@ -607,6 +612,11 @@ export default function DashboardPage({ session }) {
       }
     }).catch((e) => setLoadError(e.message));
   }, [sheetCode]);
+
+  const [users, setUsers] = useState([]);
+  useEffect(() => {
+    apiGet("/api/users").then(setUsers).catch(() => { });
+  }, []);
 
   const today = todayIso();
   const [periode, setPeriode] = useState("mois");
@@ -993,6 +1003,7 @@ export default function DashboardPage({ session }) {
   const [addingTicket, setAddingTicket] = useState(false);
   const [newTicketTitre, setNewTicketTitre] = useState("");
   const [newTicketSous, setNewTicketSous] = useState("");
+  const [newTicketUrgence, setNewTicketUrgence] = useState("moyenne");
   function refreshParetoTickets() {
     if (!sheet) return;
     apiGet(`/api/paretoTickets?sheetId=${sheet.id}`).then(setTickets).catch(() => { });
@@ -1000,9 +1011,10 @@ export default function DashboardPage({ session }) {
   useEffect(refreshParetoTickets, [sheet]);
   function handleAddTicket() {
     if (!newTicketTitre.trim() || !sheet) return;
-    apiPost("/api/paretoTickets", { sheetId: sheet.id, titre: newTicketTitre.trim(), sous: newTicketSous.trim() }).then(() => {
+    apiPost("/api/paretoTickets", { sheetId: sheet.id, titre: newTicketTitre.trim(), sous: newTicketSous.trim(), urgence: newTicketUrgence }).then(() => {
       setNewTicketTitre("");
       setNewTicketSous("");
+      setNewTicketUrgence("moyenne");
       setAddingTicket(false);
       refreshParetoTickets();
     });
@@ -1052,6 +1064,10 @@ export default function DashboardPage({ session }) {
             <Link href="/supervision" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
               <FaChartBar className="text-[7px]" />
               Supervision hebdomadaire
+            </Link>
+            <Link href="/rp" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
+              <FaClipboardList className="text-[7px]" />
+              Résolution de problèmes
             </Link>
           </nav>
         </div>
@@ -1283,7 +1299,7 @@ export default function DashboardPage({ session }) {
                         <p className="text-[6px] text-gray-500 mt-0.5">
                           Quantité objectif (calculée) : <span className="font-bold text-gray-700">{paramsC.quantiteObjectif || 0}</span> pièce
                         </p>
-                        <p className="text-[6px] text-gray-500 mt-0.5">
+                        <p className="text-[6px] text-gray-500 mt-0.5" title={`${efficienceLabel} = Quantité produite / Quantité objectif`}>
                           {efficienceLabel} calculé(e) : <span className="font-bold text-gray-700">{efficience.toFixed(1)}%</span>
                         </p>
                         <p className="text-[5px] text-gray-400 mt-0.5">Feuille de type « {sheetType === "machine" ? "machine" : "ligne"} »</p>
@@ -1293,7 +1309,7 @@ export default function DashboardPage({ session }) {
                       <>
                         <NumField label="Quantité produite" unit="pièce" value={paramsD.quantiteProduite ?? ""} onChange={(v) => setDraftField("quantiteProduite", v)} />
                         <NumField label="Quantité planifiée" unit="pièce" value={paramsDraft.quantitePlanifiee ?? ""} onChange={(v) => setDraftField("quantitePlanifiee", v)} />
-                        <p className="text-[6px] text-gray-500 mt-0.5">
+                        <p className="text-[6px] text-gray-500 mt-0.5" title="PDP = Quantité produite / Quantité planifiée">
                           PDP calculé : <span className="font-bold text-gray-700">{pdp.toFixed(1)}%</span>
                         </p>
                       </>
@@ -1413,18 +1429,18 @@ export default function DashboardPage({ session }) {
                           <NumField label="Temps de gammes" unit="min/pièce" value={tempsLocal.gammes} onChange={(v) => setTempsField("gammes", v)} compact />
                         </div>
                         <div className="grid grid-cols-2 gap-1 mt-1">
-                          <TimeResult label="Temps requis" hours={toH(tempsRequisMin)} />
-                          <TimeResult label="Temps de fonctionnement" hours={toH(tempsFonctionnementMin)} />
-                          <TimeResult label="Temps utile" hours={toH(tempsUtileMin)} />
-                          <TimeResult label="Temps de non qualité" hours={toH(tempsNonQualiteMin)} />
-                          <TimeResult label="Temps net" hours={toH(tempsNetMin)} />
-                          <TimeResult label="Temps de ralentissement" hours={toH(tempsRalentissementMin)} />
+                          <TimeResult label="Temps requis" hours={toH(tempsRequisMin)} formula={TEMPS_FORMULAS.tempsRequis} />
+                          <TimeResult label="Temps de fonctionnement" hours={toH(tempsFonctionnementMin)} formula={TEMPS_FORMULAS.tempsFonctionnement} />
+                          <TimeResult label="Temps utile" hours={toH(tempsUtileMin)} formula={TEMPS_FORMULAS.tempsUtile} />
+                          <TimeResult label="Temps de non qualité" hours={toH(tempsNonQualiteMin)} formula={TEMPS_FORMULAS.tempsNonQualite} />
+                          <TimeResult label="Temps net" hours={toH(tempsNetMin)} formula={TEMPS_FORMULAS.tempsNet} />
+                          <TimeResult label="Temps de ralentissement" hours={toH(tempsRalentissementMin)} formula={TEMPS_FORMULAS.tempsRalentissement} />
                         </div>
-                        {/* {tempsRalentissementMin < 0 &&
-                          <div className="w-full flex justify-center items-center gap-1 text-red-500 font-bold mt-2">
-                            <FaExclamationTriangle size={8} className="-translate-y-[1px]" />Impossible de produire cette quantité dans ce temps de fonctionnement
+                        {tempsFonctionnementMin > 0 && tempsRalentissementMin / tempsFonctionnementMin > TEMPS_RALENTISSEMENT_ALERT_RATIO && (
+                          <div className="mt-1 bg-red-50 border border-red-200 text-red-600 rounded-md px-1.5 py-1 text-[6px] font-semibold">
+                            Alerte : temps de ralentissement anormalement élevé ({Math.round((tempsRalentissementMin / tempsFonctionnementMin) * 100)}% du temps de fonctionnement).
                           </div>
-                        } */}
+                        )}
                       </div>
                     )}
 
@@ -1506,10 +1522,10 @@ export default function DashboardPage({ session }) {
                     </div>
                     {selectedKpi === "C" && (
                       <div className="flex items-center gap-1.5 text-[5px] text-gray-400 mt-0.5">
-                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-0.5 bg-[#FB8C00] inline-block" />TRS/Efficience</span>
-                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-0.5 bg-[#1E88E5] inline-block" />Disponibilité</span>
-                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-0.5 bg-[#43A047] inline-block" />Performance</span>
-                        <span className="flex items-center gap-0.5"><span className="w-1.5 h-0.5 bg-[#8E24AA] inline-block" />Qualité</span>
+                        <span className="flex items-center gap-0.5" title={`${efficienceLabel} = Quantité produite / Quantité objectif`}><span className="w-1.5 h-0.5 bg-[#FB8C00] inline-block" />TRS/Efficience</span>
+                        <span className="flex items-center gap-0.5" title={TEMPS_FORMULAS.disponibilite}><span className="w-1.5 h-0.5 bg-[#1E88E5] inline-block" />Disponibilité</span>
+                        <span className="flex items-center gap-0.5" title={TEMPS_FORMULAS.performance}><span className="w-1.5 h-0.5 bg-[#43A047] inline-block" />Performance</span>
+                        <span className="flex items-center gap-0.5" title={TEMPS_FORMULAS.qualite}><span className="w-1.5 h-0.5 bg-[#8E24AA] inline-block" />Qualité</span>
                       </div>
                     )}
                   </div>
@@ -1583,10 +1599,13 @@ export default function DashboardPage({ session }) {
                                     />
                                   </td>
                                   <td className="py-1 pr-0.5">
-                                    <InputWithKeyboard
+                                    <UserSelect
+                                      users={users}
                                       value={draft.pilote}
-                                      onChange={(e) => setDraft({ ...draft, pilote: e.target.value })}
-                                      className="w-full border border-gray-200 rounded px-1 py-0.5 text-[6px]"
+                                      onChange={(v) => setDraft({ ...draft, pilote: v })}
+                                      compact
+                                      floating
+                                      placeholder="Pilote..."
                                     />
                                   </td>
                                   <td className="py-1 pr-0.5">
@@ -1780,18 +1799,22 @@ export default function DashboardPage({ session }) {
               <ParetoCard title="DÉLAI" color="#1E88E5" letter="D">
                 <p className="text-[6px] text-gray-400 mb-1">Tableau des tickets</p>
                 <div className="flex flex-col gap-1 max-h-[75px] overflow-auto">
-                  {tickets.map((t) => (
-                    <div key={t.id} className="flex items-start gap-1 bg-amber-50 border border-amber-100 rounded-lg px-1.5 py-1">
-                      <span className="text-amber-500 font-bold text-[6px] mt-0.5">+</span>
-                      <div className="text-[6px] leading-tight">
-                        <div className="font-semibold text-gray-700">{t.titre}</div>
-                        <div className="text-gray-400">{t.sous}</div>
+                  {tickets.map((t) => {
+                    const u = URGENCE_INFO[t.urgence] || URGENCE_INFO.moyenne;
+                    return (
+                      <div key={t.id} className={`flex items-start gap-1 border rounded-lg px-1.5 py-1 ${u.bg} ${u.border}`}>
+                        <span className="font-bold text-[6px] mt-0.5" style={{ color: u.color }}>●</span>
+                        <div className="text-[6px] leading-tight flex-1">
+                          <div className="font-semibold text-gray-700">{t.titre}</div>
+                          <div className="text-gray-400">{t.sous}</div>
+                        </div>
+                        <span className={`text-[5px] font-bold px-1 py-0.5 rounded ${u.text} ${u.bg} border ${u.border}`}>{u.label}</span>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
                 {addingTicket ? (
-                  <div className="flex flex-row flex-wrap gap-1 mt-1">
+                  <div className="flex flex-col gap-1 mt-1">
                     <InputWithKeyboard
                       autoFocus
                       value={newTicketTitre}
@@ -1805,6 +1828,11 @@ export default function DashboardPage({ session }) {
                       placeholder="Détail..."
                       className="border border-gray-200 rounded-md px-1 py-1 text-[6px] outline-none"
                     />
+                    <select value={newTicketUrgence} onChange={(e) => setNewTicketUrgence(e.target.value)} className="border border-gray-200 rounded-md px-1 py-1 text-[6px]">
+                      <option value="faible">Urgence faible</option>
+                      <option value="moyenne">Urgence moyenne</option>
+                      <option value="critique">Urgence critique</option>
+                    </select>
                     <div className="flex items-center gap-1">
                       <button onClick={handleAddTicket} className="flex items-center gap-0.5 bg-blue-600 text-white text-[6px] font-semibold px-1.5 py-1 rounded-md">
                         <FaSave className="text-[5px]" /> Enregistrer
@@ -1814,6 +1842,7 @@ export default function DashboardPage({ session }) {
                           setAddingTicket(false);
                           setNewTicketTitre("");
                           setNewTicketSous("");
+                          setNewTicketUrgence("moyenne");
                         }}
                         className="text-gray-400 text-[6px] px-0.5"
                       >

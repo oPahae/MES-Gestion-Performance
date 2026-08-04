@@ -118,6 +118,7 @@ CREATE TABLE users (
   email VARCHAR(150) NOT NULL UNIQUE,
   password_hash VARCHAR(255) NOT NULL,
   actif BOOLEAN NOT NULL DEFAULT TRUE,
+  role ENUM('logistique','qualite','methodiste','chef_equipe') NOT NULL DEFAULT 'chef_equipe',
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -179,6 +180,7 @@ CREATE TABLE probleme_equipe (
   id INT AUTO_INCREMENT PRIMARY KEY,
   probleme_id INT NOT NULL,
   nom VARCHAR(150) NOT NULL,
+  role VARCHAR(50) NULL,
   FOREIGN KEY (probleme_id) REFERENCES problemes(id) ON DELETE CASCADE
 );
 

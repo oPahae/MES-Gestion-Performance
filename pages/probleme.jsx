@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/router";
 import Link from "next/link";
 import {
+  FaCog,
   FaCogs,
   FaPlane,
   FaChartBar,
@@ -9,6 +10,7 @@ import {
   FaClipboardList,
   FaCheckCircle,
   FaCircle,
+  FaLock,
   FaPlus,
   FaTrash,
   FaEdit,
@@ -22,6 +24,8 @@ import {
 } from "react-icons/fa";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/apiClient";
 import { D_STEPS, BLOCS, ACTION_STATUT_LABELS, computeCompletion, fmtLead } from "../lib/problemeLogic";
+import { ROLE_LABELS } from "../lib/userLogic";
+import UserSelect from "../components/UserSelect";
 import { verifyAuth } from "../middlewares/auth";
 
 function fmtDateTime(iso) {
@@ -80,8 +84,9 @@ function IconButton({ children, danger, ...props }) {
   return (
     <button
       {...props}
-      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-        }`}
+      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${
+        danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+      }`}
     >
       {children}
     </button>
@@ -149,7 +154,7 @@ function Modal({ title, onClose, children }) {
   );
 }
 
-function ActionFormFields({ draft, setDraft, showCauseColumn, showLigneColumn, causesOptions, allSheets, file, setFile, hasExistingFile }) {
+function ActionFormFields({ draft, setDraft, showCauseColumn, showLigneColumn, causesOptions, allSheets, users, file, setFile, hasExistingFile }) {
   return (
     <div className="flex flex-col gap-3">
       {showCauseColumn && (
@@ -173,7 +178,7 @@ function ActionFormFields({ draft, setDraft, showCauseColumn, showLigneColumn, c
         <TextInput value={draft.action} onChange={(e) => setDraft({ ...draft, action: e.target.value })} placeholder="Description de l'action..." />
       </Field>
       <Field label="Pilote">
-        <TextInput value={draft.pilote} onChange={(e) => setDraft({ ...draft, pilote: e.target.value })} placeholder="Nom du pilote..." />
+        <UserSelect users={users} value={draft.pilote} onChange={(v) => setDraft({ ...draft, pilote: v })} placeholder="Sélectionner un pilote..." />
       </Field>
       <div className="grid grid-cols-3 gap-2">
         <Field label="Date début">
@@ -202,7 +207,7 @@ function ActionFormFields({ draft, setDraft, showCauseColumn, showLigneColumn, c
 
 const EMPTY_DRAFT = { action: "", pilote: "", date_debut: new Date().toISOString().split("T")[0], date_fin: "", date_replanification: "", statut: "a_faire", ligne: "", cause_id: "" };
 
-function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, causesOptions, allSheets, onChanged }) {
+function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, causesOptions, allSheets, users, onChanged }) {
   const [rows, setRows] = useState([]);
   const [modalMode, setModalMode] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -216,7 +221,7 @@ function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, caus
         setRows(r);
         if (onChanged) onChanged();
       })
-      .catch(() => { });
+      .catch(() => {});
   }
   useEffect(refresh, [problemeId, type]);
 
@@ -338,12 +343,13 @@ function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, caus
                 <td className="py-3 pr-2 text-gray-500">{row.date_replanification || "—"}</td>
                 <td className="py-3 pr-2">
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${row.statut === "en_cours"
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                      row.statut === "en_cours"
                         ? "bg-orange-100 text-orange-600"
                         : row.statut === "termine"
-                          ? "bg-green-100 text-green-600"
-                          : "bg-blue-50 text-blue-500"
-                      }`}
+                        ? "bg-green-100 text-green-600"
+                        : "bg-blue-50 text-blue-500"
+                    }`}
                   >
                     {ACTION_STATUT_LABELS[row.statut]}
                   </span>
@@ -387,6 +393,7 @@ function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, caus
             showLigneColumn={showLigneColumn}
             causesOptions={causesOptions}
             allSheets={allSheets}
+            users={users}
             file={draftFile}
             setFile={setDraftFile}
             hasExistingFile={modalMode === "edit" && !!rows.find((r) => r.id === editingId)?.hasFile}
@@ -508,8 +515,9 @@ function TreeNodeCard({ node, onToggleRacine, onAddChild, onDelete, isRoot }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className={`flex items-center gap-2 rounded-xl px-3 py-2 border shadow-sm whitespace-nowrap ${isRoot ? "bg-blue-600 border-blue-600 text-white" : node.cause_racine ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
-          }`}
+        className={`flex items-center gap-2 rounded-xl px-3 py-2 border shadow-sm whitespace-nowrap ${
+          isRoot ? "bg-blue-600 border-blue-600 text-white" : node.cause_racine ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
+        }`}
       >
         {!isRoot && (
           <input
@@ -668,12 +676,13 @@ function CauseTree(props) {
   );
 }
 
-export default function ProblemePage() {
+export default function ProblemePage({ session }) {
   const router = useRouter();
   const routerReady = router.isReady;
   const queryId = router.query.id;
 
   const [allSheets, setAllSheets] = useState([]);
+  const [users, setUsers] = useState([]);
   const [problemeId, setProblemeId] = useState(null);
   const [record, setRecord] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -694,7 +703,8 @@ export default function ProblemePage() {
   }
 
   useEffect(() => {
-    apiGet("/api/sheets").then(setAllSheets).catch(() => { });
+    apiGet("/api/sheets").then(setAllSheets).catch(() => {});
+    apiGet("/api/users").then(setUsers).catch(() => {});
   }, []);
 
   function loadRecord(recId) {
@@ -763,14 +773,15 @@ export default function ProblemePage() {
 
   function refreshRecord() {
     if (!problemeId) return;
-    apiGet(`/api/problemes/${problemeId}`).then(setRecord).catch(() => { });
+    apiGet(`/api/problemes/${problemeId}`).then(setRecord).catch(() => {});
   }
 
-  const [newMemberName, setNewMemberName] = useState("");
+  const [newMemberSelection, setNewMemberSelection] = useState("");
   function addMember() {
-    if (!newMemberName.trim() || !problemeId) return;
-    apiPost(`/api/problemes/${problemeId}/equipe`, { nom: newMemberName.trim() }).then(() => {
-      setNewMemberName("");
+    if (!newMemberSelection || !problemeId) return;
+    const user = users.find((u) => u.nom === newMemberSelection);
+    apiPost(`/api/problemes/${problemeId}/equipe`, { nom: newMemberSelection, role: user ? user.role : null }).then(() => {
+      setNewMemberSelection("");
       refreshRecord();
     });
   }
@@ -869,6 +880,14 @@ export default function ProblemePage() {
     });
   }, [record, metaDraft]);
 
+  const baseUnlocked = !!(completion.D0 && completion.D1);
+
+  useEffect(() => {
+    if (!baseUnlocked && activeStep !== "D0" && activeStep !== "D1") {
+      setActiveStep("D0");
+    }
+  }, [baseUnlocked, activeStep]);
+
   if (loading) {
     return <div className="min-h-screen w-screen flex items-center justify-center bg-[#EEF1F6] text-gray-400 text-sm">Chargement...</div>;
   }
@@ -917,6 +936,13 @@ export default function ProblemePage() {
           </nav>
         </div>
         <div className="px-3 pb-4">
+          <div className="px-1 pt-1.5 pb-1 text-[10px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
+          {session.isAdmin &&
+            <Link href="/settings" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-white/5">
+              <FaCog className="text-sm" />
+              Paramètres
+            </Link>
+          }
           <Link href="/api/auth/logout" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-white/5">
             <FaSignOutAlt className="text-sm" />
             LOGOUT
@@ -946,19 +972,41 @@ export default function ProblemePage() {
               {D_STEPS.map((step) => {
                 const done = !!completion[step.key];
                 const isActive = activeStep === step.key;
+                const isBase = step.key === "D0" || step.key === "D1";
+                const locked = !isBase && !baseUnlocked;
                 return (
                   <button
                     key={step.key}
-                    onClick={() => setActiveStep(step.key)}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-left text-xs font-semibold transition-all duration-150 ${isActive ? "bg-blue-50 text-blue-700 border border-blue-200" : "text-gray-600 hover:bg-gray-50 border border-transparent"
-                      }`}
+                    onClick={() => {
+                      if (!locked) setActiveStep(step.key);
+                    }}
+                    disabled={locked}
+                    title={locked ? "Complétez D0 et D1 pour accéder à cette étape" : undefined}
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-left text-xs font-semibold transition-all duration-150 ${
+                      locked
+                        ? "text-gray-300 cursor-not-allowed border border-transparent"
+                        : isActive
+                        ? "bg-blue-50 text-blue-700 border border-blue-200"
+                        : "text-gray-600 hover:bg-gray-50 border border-transparent"
+                    }`}
                   >
-                    {done ? <FaCheckCircle className="text-green-500 shrink-0" /> : <FaCircle className="text-gray-300 shrink-0 text-[8px]" />}
+                    {locked ? (
+                      <FaLock className="text-gray-300 shrink-0 text-[10px]" />
+                    ) : done ? (
+                      <FaCheckCircle className="text-green-500 shrink-0" />
+                    ) : (
+                      <FaCircle className="text-gray-300 shrink-0 text-[8px]" />
+                    )}
                     <span className="flex-1">{step.label}</span>
                   </button>
                 );
               })}
             </div>
+            {!baseUnlocked && (
+              <p className="text-[11px] text-orange-500 mt-3 px-1">
+                D0 et D1 doivent être complétées avant d&apos;accéder aux autres étapes.
+              </p>
+            )}
           </nav>
 
           <main className="flex-1 min-h-0 overflow-auto p-6">
@@ -978,17 +1026,14 @@ export default function ProblemePage() {
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 max-w-2xl flex flex-col gap-4">
                 <h2 className="text-base font-bold text-gray-700">D1 — Former l&apos;équipe</h2>
                 <Field label="Pilote">
-                  <TextInput value={metaDraft.pilote} onChange={(e) => setMeta("pilote", e.target.value)} placeholder="Nom du pilote..." />
+                  <UserSelect users={users} value={metaDraft.pilote} onChange={(v) => setMeta("pilote", v)} placeholder="Sélectionner un pilote..." />
                 </Field>
                 <Field label="Membres de l'équipe">
                   <div className="flex items-center gap-2">
-                    <TextInput
-                      value={newMemberName}
-                      onChange={(e) => setNewMemberName(e.target.value)}
-                      placeholder="Nom du membre..."
-                      onKeyDown={(e) => e.key === "Enter" && addMember()}
-                    />
-                    <PrimaryButton onClick={addMember}>
+                    <div className="flex-1">
+                      <UserSelect users={users} value={newMemberSelection} onChange={setNewMemberSelection} placeholder="Sélectionner un membre..." />
+                    </div>
+                    <PrimaryButton onClick={addMember} disabled={!newMemberSelection}>
                       <FaUserPlus className="text-xs" /> Ajouter
                     </PrimaryButton>
                   </div>
@@ -997,6 +1042,9 @@ export default function ProblemePage() {
                     {record.equipe.map((m) => (
                       <span key={m.id} className="flex items-center gap-2 bg-gray-100 text-gray-700 text-xs font-medium px-3 py-1.5 rounded-full">
                         {m.nom}
+                        <span className="text-[10px] font-semibold text-blue-600 bg-blue-50 rounded-full px-2 py-0.5">
+                          {ROLE_LABELS[m.role] || m.role || "—"}
+                        </span>
                         <FaTimes className="text-gray-400 hover:text-red-600 cursor-pointer" onClick={() => removeMember(m.id)} />
                       </span>
                     ))}
@@ -1005,7 +1053,7 @@ export default function ProblemePage() {
               </div>
             )}
 
-            {activeStep === "D2" && (
+            {activeStep === "D2" && baseUnlocked && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 max-w-3xl flex flex-col gap-4">
                 <h2 className="text-base font-bold text-gray-700">D2 — QQOQCCP</h2>
                 <Field label="QUOI ?" questions={[
@@ -1055,7 +1103,7 @@ export default function ProblemePage() {
               </div>
             )}
 
-            {activeStep === "D3" && (
+            {activeStep === "D3" && baseUnlocked && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h2 className="text-base font-bold text-gray-700 mb-3">D3 — Actions de sécurisation</h2>
                 <ActionsTable
@@ -1065,12 +1113,13 @@ export default function ProblemePage() {
                   showLigneColumn={false}
                   causesOptions={[]}
                   allSheets={allSheets}
+                  users={users}
                   onChanged={refreshRecord}
                 />
               </div>
             )}
 
-            {activeStep === "D4" && (
+            {activeStep === "D4" && baseUnlocked && (
               <div className="flex flex-col gap-4">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                   <h2 className="text-base font-bold text-gray-700 mb-3">D4 — Identification des causes racines</h2>
@@ -1091,8 +1140,9 @@ export default function ProblemePage() {
                             <button
                               key={c.id}
                               onClick={() => setSelectedCauseId(c.id)}
-                              className={`flex items-center justify-between gap-1 text-left px-2 py-1.5 rounded-md text-[11px] transition-colors ${selectedCauseId === c.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                                }`}
+                              className={`flex items-center justify-between gap-1 text-left px-2 py-1.5 rounded-md text-[11px] transition-colors ${
+                                selectedCauseId === c.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                              }`}
                             >
                               <span className="truncate">{c.texte}</span>
                               <FaTrash
@@ -1138,7 +1188,7 @@ export default function ProblemePage() {
               </div>
             )}
 
-            {activeStep === "D56" && (
+            {activeStep === "D56" && baseUnlocked && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h2 className="text-base font-bold text-gray-700 mb-3">D5/6 — Plan d&apos;actions</h2>
                 <ActionsTable
@@ -1148,12 +1198,13 @@ export default function ProblemePage() {
                   showLigneColumn={false}
                   causesOptions={causes.filter((c) => c.cause_racine)}
                   allSheets={allSheets}
+                  users={users}
                   onChanged={refreshRecord}
                 />
               </div>
             )}
 
-            {activeStep === "D7" && (
+            {activeStep === "D7" && baseUnlocked && (
               <div className="flex flex-col gap-4">
                 <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                   <h2 className="text-base font-bold text-gray-700 mb-3">D7 — Transversalisation</h2>
@@ -1165,6 +1216,7 @@ export default function ProblemePage() {
                     showLigneColumn={false}
                     causesOptions={[]}
                     allSheets={allSheets}
+                    users={users}
                     onChanged={refreshRecord}
                   />
                 </div>
@@ -1198,6 +1250,7 @@ export default function ProblemePage() {
                       showLigneColumn={true}
                       causesOptions={[]}
                       allSheets={allSheets}
+                      users={users}
                       onChanged={refreshRecord}
                     />
                   )}
@@ -1205,11 +1258,11 @@ export default function ProblemePage() {
               </div>
             )}
 
-            {activeStep === "D8" && (
+            {activeStep === "D8" && baseUnlocked && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 max-w-lg flex flex-col gap-4">
                 <h2 className="text-base font-bold text-gray-700">D8 — Validation</h2>
                 <Field label="Nom du responsable">
-                  <TextInput value={metaDraft.validation_nom} onChange={(e) => setMeta("validation_nom", e.target.value)} />
+                  <UserSelect users={users} value={metaDraft.validation_nom} onChange={(v) => setMeta("validation_nom", v)} placeholder="Sélectionner le responsable..." />
                 </Field>
                 <Field label="Date de validation">
                   <TextInput type="date" value={metaDraft.validation_date} onChange={(e) => setMeta("validation_date", e.target.value)} />
@@ -1251,10 +1304,24 @@ export default function ProblemePage() {
   );
 }
 
+
+
 export async function getServerSideProps({ req, res }) {
   const user = verifyAuth(req, res);
   if (!user) {
-    return { redirect: { destination: "/login", permanent: false } };
+    return {
+      redirect: {
+        destination: "/login",
+        permanent: false,
+      },
+    };
   }
-  return { props: {} };
+  return {
+    props: {
+      session: {
+        nom: user.nom,
+        isAdmin: user.role === "admin",
+      }
+    }
+  };
 }

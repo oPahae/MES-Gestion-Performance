@@ -1,4 +1,3 @@
-// pages/api/importExcel.js
 import formidable from "formidable";
 import fs from "fs";
 import * as XLSX from "xlsx";
@@ -13,6 +12,12 @@ export const config = {
 const KPI_KEYS = ["S", "Q", "C", "D", "P"];
 const CAUSE_CATEGORIES = ["place", "risque", "defaut", "absence"];
 const ACTION_STATUTS = ["a_faire", "en_cours", "termine"];
+
+const MAX_COUNT = 100000;
+const MAX_QTY = 1000000;
+const MAX_TIME_MIN = 100000;
+const MIN_DATE = "2000-01-01";
+const MAX_DATE_FUTURE_DAYS = 365;
 
 function parseForm(req) {
   return new Promise((resolve, reject) => {
@@ -56,6 +61,14 @@ function toDateString(value) {
   return null;
 }
 
+function isDateInAcceptableRange(dateStr) {
+  if (dateStr < MIN_DATE) return false;
+  const today = new Date();
+  const maxFuture = new Date(today.getTime() + MAX_DATE_FUTURE_DAYS * 24 * 60 * 60 * 1000);
+  const d = new Date(`${dateStr}T00:00:00`);
+  return d.getTime() <= maxFuture.getTime();
+}
+
 function toIntOrDefault(value, fallback) {
   if (value === null || value === undefined || value === "") return fallback;
   const n = Number(value);
@@ -68,6 +81,10 @@ function toIntOrNull(value) {
   const n = Number(value);
   if (!Number.isFinite(n)) return NaN;
   return Math.trunc(n);
+}
+
+function checkRange(value, min, max) {
+  return Number.isFinite(value) && value >= min && value <= max;
 }
 
 export default async function handler(req, res) {
@@ -137,6 +154,10 @@ export default async function handler(req, res) {
           errors.push(`KPI_Params ligne ${line}: date invalide.`);
           return;
         }
+        if (!isDateInAcceptableRange(dateJour)) {
+          errors.push(`KPI_Params ligne ${line}: date "${dateJour}" hors plage acceptable (${MIN_DATE} à J+${MAX_DATE_FUTURE_DAYS}).`);
+          return;
+        }
 
         let data = {};
         if (kpiKey === "S") {
@@ -144,6 +165,14 @@ export default async function handler(req, res) {
           const risques = toIntOrDefault(row.Risques, 0);
           if (Number.isNaN(accidents) || Number.isNaN(risques)) {
             errors.push(`KPI_Params ligne ${line}: valeurs numériques invalides pour S.`);
+            return;
+          }
+          if (!checkRange(accidents, 0, MAX_COUNT)) {
+            errors.push(`KPI_Params ligne ${line}: Accidents "${accidents}" hors plage acceptable (0 à ${MAX_COUNT}).`);
+            return;
+          }
+          if (!checkRange(risques, 0, MAX_COUNT)) {
+            errors.push(`KPI_Params ligne ${line}: Risques "${risques}" hors plage acceptable (0 à ${MAX_COUNT}).`);
             return;
           }
           data = { accidents, risques };
@@ -155,12 +184,36 @@ export default async function handler(req, res) {
             errors.push(`KPI_Params ligne ${line}: valeurs numériques invalides pour Q.`);
             return;
           }
+          if (!checkRange(retoursClients, 0, MAX_COUNT)) {
+            errors.push(`KPI_Params ligne ${line}: RetoursClients "${retoursClients}" hors plage acceptable (0 à ${MAX_COUNT}).`);
+            return;
+          }
+          if (!checkRange(rebuts, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: Rebuts "${rebuts}" hors plage acceptable (0 à ${MAX_QTY}).`);
+            return;
+          }
+          if (!checkRange(quantiteTotale, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: QuantiteTotale "${quantiteTotale}" hors plage acceptable (0 à ${MAX_QTY}).`);
+            return;
+          }
+          if (rebuts > quantiteTotale) {
+            errors.push(`KPI_Params ligne ${line}: Rebuts (${rebuts}) ne peut pas dépasser QuantiteTotale (${quantiteTotale}).`);
+            return;
+          }
           data = { retoursClients, rebuts, quantiteTotale };
         } else if (kpiKey === "C") {
           const quantiteProduite = toIntOrDefault(row.QuantiteProduite, 0);
           const quantiteObjectif = toIntOrDefault(row.QuantiteObjectif, 0);
           if ([quantiteProduite, quantiteObjectif].some(Number.isNaN)) {
             errors.push(`KPI_Params ligne ${line}: valeurs numériques invalides pour C.`);
+            return;
+          }
+          if (!checkRange(quantiteProduite, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: QuantiteProduite "${quantiteProduite}" hors plage acceptable (0 à ${MAX_QTY}).`);
+            return;
+          }
+          if (!checkRange(quantiteObjectif, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: QuantiteObjectif "${quantiteObjectif}" hors plage acceptable (0 à ${MAX_QTY}).`);
             return;
           }
           data = { quantiteProduite, quantiteObjectif };
@@ -171,11 +224,23 @@ export default async function handler(req, res) {
             errors.push(`KPI_Params ligne ${line}: valeurs numériques invalides pour D.`);
             return;
           }
+          if (!checkRange(quantiteProduite, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: QuantiteProduite "${quantiteProduite}" hors plage acceptable (0 à ${MAX_QTY}).`);
+            return;
+          }
+          if (!checkRange(quantitePlanifiee, 0, MAX_QTY)) {
+            errors.push(`KPI_Params ligne ${line}: QuantitePlanifiee "${quantitePlanifiee}" hors plage acceptable (0 à ${MAX_QTY}).`);
+            return;
+          }
           data = { quantiteProduite, quantitePlanifiee };
         } else if (kpiKey === "P") {
           const absents = toIntOrDefault(row.Absents, 0);
           if (Number.isNaN(absents)) {
             errors.push(`KPI_Params ligne ${line}: valeur numérique invalide pour P.`);
+            return;
+          }
+          if (!checkRange(absents, 0, MAX_COUNT)) {
+            errors.push(`KPI_Params ligne ${line}: Absents "${absents}" hors plage acceptable (0 à ${MAX_COUNT}).`);
             return;
           }
           data = { absents };
@@ -210,6 +275,10 @@ export default async function handler(req, res) {
           errors.push(`Causes_Temps ligne ${line}: date invalide.`);
           return;
         }
+        if (!isDateInAcceptableRange(dateJour)) {
+          errors.push(`Causes_Temps ligne ${line}: date "${dateJour}" hors plage acceptable (${MIN_DATE} à J+${MAX_DATE_FUTURE_DAYS}).`);
+          return;
+        }
 
         const fieldsMap = {
           ouverture: toIntOrDefault(row.Ouverture, 0),
@@ -222,6 +291,29 @@ export default async function handler(req, res) {
         };
         if (Object.values(fieldsMap).some(Number.isNaN)) {
           errors.push(`Causes_Temps ligne ${line}: valeurs numériques invalides.`);
+          return;
+        }
+
+        let rangeError = false;
+        Object.entries(fieldsMap).forEach(([key, val]) => {
+          if (!checkRange(val, 0, MAX_TIME_MIN)) {
+            errors.push(`Causes_Temps ligne ${line}: ${key} "${val}" hors plage acceptable (0 à ${MAX_TIME_MIN}).`);
+            rangeError = true;
+          }
+        });
+        if (rangeError) return;
+
+        if (fieldsMap.planifie > fieldsMap.ouverture) {
+          errors.push(`Causes_Temps ligne ${line}: Planifie (${fieldsMap.planifie}) ne peut pas dépasser Ouverture (${fieldsMap.ouverture}).`);
+          return;
+        }
+
+        const tempsFonctionnementBase =
+          fieldsMap.ouverture - fieldsMap.planifie - (fieldsMap.arret + fieldsMap.changement + fieldsMap.rupture + fieldsMap.autre);
+        if (tempsFonctionnementBase < 0) {
+          errors.push(
+            `Causes_Temps ligne ${line}: la somme des arrêts (Arret + Changement + Rupture + Autre = ${fieldsMap.arret + fieldsMap.changement + fieldsMap.rupture + fieldsMap.autre}) dépasse le temps requis (${fieldsMap.ouverture - fieldsMap.planifie}).`
+          );
           return;
         }
 
@@ -256,6 +348,10 @@ export default async function handler(req, res) {
           errors.push(`Causes_Selections ligne ${line}: date invalide.`);
           return;
         }
+        if (!isDateInAcceptableRange(dateJour)) {
+          errors.push(`Causes_Selections ligne ${line}: date "${dateJour}" hors plage acceptable (${MIN_DATE} à J+${MAX_DATE_FUTURE_DAYS}).`);
+          return;
+        }
         if (!CAUSE_CATEGORIES.includes(categorie)) {
           errors.push(`Causes_Selections ligne ${line}: catégorie "${row.Categorie}" invalide.`);
           return;
@@ -264,8 +360,16 @@ export default async function handler(req, res) {
           errors.push(`Causes_Selections ligne ${line}: Valeur manquante.`);
           return;
         }
+        if (valeur.length > 150) {
+          errors.push(`Causes_Selections ligne ${line}: Valeur trop longue (150 caractères maximum).`);
+          return;
+        }
         if (Number.isNaN(quantite)) {
           errors.push(`Causes_Selections ligne ${line}: Quantite invalide.`);
+          return;
+        }
+        if (quantite !== null && !checkRange(quantite, 0, MAX_QTY)) {
+          errors.push(`Causes_Selections ligne ${line}: Quantite "${quantite}" hors plage acceptable (0 à ${MAX_QTY}).`);
           return;
         }
 
@@ -304,6 +408,10 @@ export default async function handler(req, res) {
           errors.push(`Actions ligne ${line}: date invalide.`);
           return;
         }
+        if (!isDateInAcceptableRange(dateJour)) {
+          errors.push(`Actions ligne ${line}: date "${dateJour}" hors plage acceptable (${MIN_DATE} à J+${MAX_DATE_FUTURE_DAYS}).`);
+          return;
+        }
         if (!KPI_KEYS.includes(kpiKey)) {
           errors.push(`Actions ligne ${line}: KPI "${row.KPI}" invalide.`);
           return;
@@ -312,8 +420,20 @@ export default async function handler(req, res) {
           errors.push(`Actions ligne ${line}: Probleme manquant.`);
           return;
         }
+        if (probleme.length > 200) {
+          errors.push(`Actions ligne ${line}: Probleme trop long (200 caractères maximum).`);
+          return;
+        }
         if (!action) {
           errors.push(`Actions ligne ${line}: Action manquante.`);
+          return;
+        }
+        if (action.length > 200) {
+          errors.push(`Actions ligne ${line}: Action trop longue (200 caractères maximum).`);
+          return;
+        }
+        if (pilote.length > 100) {
+          errors.push(`Actions ligne ${line}: Pilote trop long (100 caractères maximum).`);
           return;
         }
         if (!ACTION_STATUTS.includes(statut)) {
