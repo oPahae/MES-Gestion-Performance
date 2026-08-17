@@ -22,6 +22,7 @@ import {
   FaExclamationTriangle,
 } from "react-icons/fa";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/apiClient";
+import ExcelImportReview from "../components/ExcelImportReview";
 import { verifyAuth } from "../middlewares/auth";
 
 const TABS = [
@@ -416,6 +417,10 @@ function ListesTab({ allSheets, notify, accent }) {
   );
 }
 
+function sheetPlaceholders(type) {
+  return type === "machine" ? { code: "machineDe3", label: "Machine 3" } : { code: "ligneAvion3", label: "Ligne Avion 3" };
+}
+
 function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
   const [newCode, setNewCode] = useState("");
   const [newLabel, setNewLabel] = useState("");
@@ -435,7 +440,7 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
 
   function refreshPostes() {
     if (!posteSheetId) return;
-    apiGet(`/api/postes?sheetId=${posteSheetId}`).then(setPostes).catch(() => { });
+    apiGet(`/api/postes?sheetId=${posteSheetId}`).then(setPostes).catch(() => {});
   }
   useEffect(refreshPostes, [posteSheetId]);
 
@@ -515,15 +520,18 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
       .catch(() => notify("Erreur lors de la suppression du poste.", "error"));
   }
 
+  const newPh = sheetPlaceholders(newType);
+  const draftPh = draft ? sheetPlaceholders(draft.type) : newPh;
+
   return (
     <div className="flex gap-4">
       <SectionCard accent={accent} className="w-2/3" title="Feuilles (lignes / machines)">
         <div className="flex flex-wrap items-end gap-3 mb-4 border border-gray-100 rounded-xl p-3 bg-gradient-to-br from-gray-50 to-white">
           <Field label="Code (URL)">
-            <TextInput value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder="ligneAvion3" />
+            <TextInput value={newCode} onChange={(e) => setNewCode(e.target.value)} placeholder={newPh.code} />
           </Field>
           <Field label="Nom affiché">
-            <TextInput value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder="Ligne Avion 3" />
+            <TextInput value={newLabel} onChange={(e) => setNewLabel(e.target.value)} placeholder={newPh.label} />
           </Field>
           <Field label="Type">
             <Select value={newType} onChange={(e) => setNewType(e.target.value)}>
@@ -553,10 +561,10 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
                   {isEditing ? (
                     <>
                       <td className="py-2 pr-2">
-                        <TextInput value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} />
+                        <TextInput value={draft.code} onChange={(e) => setDraft({ ...draft, code: e.target.value })} placeholder={draftPh.code} />
                       </td>
                       <td className="py-2 pr-2">
-                        <TextInput value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} />
+                        <TextInput value={draft.label} onChange={(e) => setDraft({ ...draft, label: e.target.value })} placeholder={draftPh.label} />
                       </td>
                       <td className="py-2 pr-2">
                         <Select value={draft.type} onChange={(e) => setDraft({ ...draft, type: e.target.value })}>
@@ -586,8 +594,9 @@ function SheetsTab({ allSheets, refreshSheets, notify, accent }) {
                       <td className="py-3 text-gray-700">{s.label}</td>
                       <td className="py-3">
                         <span
-                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${s.type === "machine" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
-                            }`}
+                          className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
+                            s.type === "machine" ? "bg-purple-100 text-purple-600" : "bg-blue-100 text-blue-600"
+                          }`}
                         >
                           {s.type === "machine" ? "Machine" : "Ligne"}
                         </span>
@@ -893,9 +902,9 @@ function ImportExportTab({ allSheets, notify, accent }) {
   const [dateTo, setDateTo] = useState(today);
   const [selectedIds, setSelectedIds] = useState([]);
   const [downloading, setDownloading] = useState(false);
-  const [uploading, setUploading] = useState(false);
+  const [analyzing, setAnalyzing] = useState(false);
   const [file, setFile] = useState(null);
-  const [importErrors, setImportErrors] = useState([]);
+  const [reviewData, setReviewData] = useState(null);
   const [resetting, setResetting] = useState(false);
   const [confirmText, setConfirmText] = useState("");
   const [showResetConfirm, setShowResetConfirm] = useState(false);
@@ -927,11 +936,7 @@ function ImportExportTab({ allSheets, notify, accent }) {
     }
     setDownloading(true);
     try {
-      const params = new URLSearchParams({
-        sheetIds: selectedIds.join(","),
-        dateFrom,
-        dateTo,
-      });
+      const params = new URLSearchParams({ sheetIds: selectedIds.join(","), dateFrom, dateTo });
       const res = await fetch(`/api/exportExcel?${params.toString()}`, { credentials: "include" });
       if (!res.ok) {
         const err = await res.json().catch(() => ({}));
@@ -954,37 +959,30 @@ function ImportExportTab({ allSheets, notify, accent }) {
     }
   }
 
-  async function handleUpload() {
+  async function handleAnalyze() {
     if (!file) {
       notify("Veuillez sélectionner un fichier Excel.", "error");
       return;
     }
-    setUploading(true);
-    setImportErrors([]);
+    setAnalyzing(true);
     try {
       const formData = new FormData();
       formData.append("file", file);
-      const res = await fetch("/api/importExcel", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      });
+      const res = await fetch("/api/importExcel/analyze", { method: "POST", body: formData, credentials: "include" });
       const data = await res.json().catch(() => ({}));
-      if (!res.ok) {
-        if (Array.isArray(data.errors) && data.errors.length > 0) {
-          setImportErrors(data.errors);
-        }
-        throw new Error(data.message || "Erreur lors de l'import.");
-      }
-      setFile(null);
-      notify(
-        `Import réussi : ${data.counts.kpi} KPI, ${data.counts.temps} temps, ${data.counts.causes} causes, ${data.counts.actions} actions.`
-      );
+      if (!res.ok) throw new Error(data.message || "Erreur lors de l'analyse du fichier.");
+      setReviewData(data);
     } catch (err) {
-      notify(err.message || "Erreur lors de l'import.", "error");
+      notify(err.message || "Erreur lors de l'analyse du fichier.", "error");
     } finally {
-      setUploading(false);
+      setAnalyzing(false);
     }
+  }
+
+  function handleImported(data) {
+    setReviewData(null);
+    setFile(null);
+    notify(`Import réussi : ${data.counts.kpi} KPI, ${data.counts.temps} temps, ${data.counts.causes} causes, ${data.counts.actions} actions.`);
   }
 
   async function handleReset() {
@@ -1032,8 +1030,9 @@ function ImportExportTab({ allSheets, notify, accent }) {
               return (
                 <label
                   key={s.id}
-                  className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border transition-all duration-150 cursor-pointer ${checked ? "border-orange-300 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
-                    }`}
+                  className={`flex items-center gap-2 text-sm rounded-lg px-3 py-2 border transition-all duration-150 cursor-pointer ${
+                    checked ? "border-orange-300 bg-orange-50 text-orange-700" : "border-gray-200 text-gray-600 hover:border-gray-300"
+                  }`}
                 >
                   <input type="checkbox" checked={checked} onChange={() => toggleSheet(s.id)} className="accent-orange-500 w-4 h-4" />
                   {s.label}
@@ -1046,7 +1045,8 @@ function ImportExportTab({ allSheets, notify, accent }) {
 
       <SectionCard accent={accent} title="Import Excel">
         <p className="text-xs text-gray-400 mb-3">
-          Le fichier doit respecter la structure exportée (feuilles KPI_Params, Causes_Temps, Causes_Selections, Actions).
+          Le fichier sera d&apos;abord analysé. Si des erreurs sont détectées, une fenêtre de vérification permettra de les corriger manuellement
+          ou via une suggestion automatique avant l&apos;import définitif.
         </p>
         <div className="flex items-center gap-3">
           <input
@@ -1055,20 +1055,10 @@ function ImportExportTab({ allSheets, notify, accent }) {
             onChange={(e) => setFile(e.target.files?.[0] || null)}
             className="text-sm file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border-0 file:bg-orange-50 file:text-orange-600 file:font-semibold hover:file:bg-orange-100 file:transition-colors"
           />
-          <PrimaryButton onClick={handleUpload} disabled={uploading}>
-            <FaUpload className="text-xs" /> {uploading ? "Import en cours..." : "Importer le fichier"}
+          <PrimaryButton onClick={handleAnalyze} disabled={analyzing}>
+            <FaUpload className="text-xs" /> {analyzing ? "Analyse en cours..." : "Analyser le fichier"}
           </PrimaryButton>
         </div>
-        {importErrors.length > 0 && (
-          <div className="mt-4 border border-red-100 bg-red-50 rounded-xl p-3 max-h-48 overflow-auto animate-fadein">
-            <p className="text-xs font-semibold text-red-600 mb-2">Erreurs détectées ({importErrors.length}) :</p>
-            <ul className="list-disc list-inside text-xs text-red-500 flex flex-col gap-1">
-              {importErrors.map((e, i) => (
-                <li key={i}>{e}</li>
-              ))}
-            </ul>
-          </div>
-        )}
       </SectionCard>
 
       <SectionCard accent="#E53935" title="Zone de danger">
@@ -1116,6 +1106,10 @@ function ImportExportTab({ allSheets, notify, accent }) {
           </div>
         )}
       </SectionCard>
+
+      {reviewData && (
+        <ExcelImportReview initial={reviewData} onClose={() => setReviewData(null)} onImported={handleImported} />
+      )}
     </div>
   );
 }

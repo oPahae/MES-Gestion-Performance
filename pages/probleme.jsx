@@ -21,6 +21,8 @@ import {
   FaFileUpload,
   FaFilePdf,
   FaFileImage,
+  FaMagic,
+  FaRobot
 } from "react-icons/fa";
 import { apiGet, apiPost, apiPut, apiDelete } from "../lib/apiClient";
 import { D_STEPS, BLOCS, ACTION_STATUT_LABELS, computeCompletion, fmtLead } from "../lib/problemeLogic";
@@ -84,9 +86,8 @@ function IconButton({ children, danger, ...props }) {
   return (
     <button
       {...props}
-      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${
-        danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
-      }`}
+      className={`p-2 rounded-lg transition-all duration-150 active:scale-90 ${danger ? "text-gray-400 hover:text-red-600 hover:bg-red-50" : "text-gray-400 hover:text-blue-600 hover:bg-blue-50"
+        }`}
     >
       {children}
     </button>
@@ -207,7 +208,7 @@ function ActionFormFields({ draft, setDraft, showCauseColumn, showLigneColumn, c
 
 const EMPTY_DRAFT = { action: "", pilote: "", date_debut: new Date().toISOString().split("T")[0], date_fin: "", date_replanification: "", statut: "a_faire", ligne: "", cause_id: "" };
 
-function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, causesOptions, allSheets, users, onChanged }) {
+function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, causesOptions, allSheets, users, reloadKey, onChanged }) {
   const [rows, setRows] = useState([]);
   const [modalMode, setModalMode] = useState(null);
   const [editingId, setEditingId] = useState(null);
@@ -221,9 +222,9 @@ function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, caus
         setRows(r);
         if (onChanged) onChanged();
       })
-      .catch(() => {});
+      .catch(() => { });
   }
-  useEffect(refresh, [problemeId, type]);
+  useEffect(refresh, [problemeId, type, reloadKey]);
 
   function openAddModal() {
     setDraft(EMPTY_DRAFT);
@@ -343,13 +344,12 @@ function ActionsTable({ problemeId, type, showCauseColumn, showLigneColumn, caus
                 <td className="py-3 pr-2 text-gray-500">{row.date_replanification || "—"}</td>
                 <td className="py-3 pr-2">
                   <span
-                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${
-                      row.statut === "en_cours"
-                        ? "bg-orange-100 text-orange-600"
-                        : row.statut === "termine"
+                    className={`px-2.5 py-1 rounded-full text-xs font-semibold ${row.statut === "en_cours"
+                      ? "bg-orange-100 text-orange-600"
+                      : row.statut === "termine"
                         ? "bg-green-100 text-green-600"
                         : "bg-blue-50 text-blue-500"
-                    }`}
+                      }`}
                   >
                     {ACTION_STATUT_LABELS[row.statut]}
                   </span>
@@ -500,6 +500,47 @@ function IshikawaDiagram({ probleme, causesByBloc, hasRacineDescendant, selected
   );
 }
 
+function AiSuggestionsPanel({ title, items, onAccept, onReject, renderItem, loading, error, onRegenerate }) {
+  if (!loading && !error && items.length === 0) return null;
+  return (
+    <div className="border border-purple-100 bg-purple-50/50 rounded-xl p-3 mb-3">
+      <div className="flex items-center justify-between mb-2">
+        <span className="flex items-center gap-2 text-xs font-bold text-purple-700">
+          <FaRobot /> {title}
+        </span>
+        {onRegenerate && (
+          <button onClick={onRegenerate} disabled={loading} className="text-[11px] text-purple-600 font-semibold hover:underline disabled:opacity-50">
+            {loading ? "Génération..." : "Régénérer"}
+          </button>
+        )}
+      </div>
+      {error && <p className="text-[11px] text-red-500 mb-2">{error}</p>}
+      {loading && items.length === 0 && <p className="text-[11px] text-purple-400">Analyse du QQOQCCP en cours...</p>}
+      <div className="flex flex-col gap-1.5">
+        {items.map((item, i) => (
+          <div key={i} className="flex items-center justify-between gap-2 bg-white border border-purple-100 rounded-lg px-3 py-2">
+            <div className="text-xs text-gray-700 flex-1">{renderItem(item)}</div>
+            <div className="flex items-center gap-1 shrink-0">
+              <button
+                onClick={() => onAccept(i)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-green-600 bg-green-50 hover:bg-green-100 rounded-md px-2 py-1"
+              >
+                <FaCheckCircle className="text-[10px]" /> Accepter
+              </button>
+              <button
+                onClick={() => onReject(i)}
+                className="flex items-center gap-1 text-[11px] font-semibold text-gray-400 bg-gray-50 hover:bg-gray-100 rounded-md px-2 py-1"
+              >
+                <FaTimes className="text-[10px]" /> Refuser
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function TreeNodeCard({ node, onToggleRacine, onAddChild, onDelete, isRoot }) {
   const [adding, setAdding] = useState(false);
   const [newText, setNewText] = useState("");
@@ -515,9 +556,8 @@ function TreeNodeCard({ node, onToggleRacine, onAddChild, onDelete, isRoot }) {
   return (
     <div className="flex flex-col items-center gap-1">
       <div
-        className={`flex items-center gap-2 rounded-xl px-3 py-2 border shadow-sm whitespace-nowrap ${
-          isRoot ? "bg-blue-600 border-blue-600 text-white" : node.cause_racine ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
-        }`}
+        className={`flex items-center gap-2 rounded-xl px-3 py-2 border shadow-sm whitespace-nowrap ${isRoot ? "bg-blue-600 border-blue-600 text-white" : node.cause_racine ? "bg-red-50 border-red-300" : "bg-white border-gray-200"
+          }`}
       >
         {!isRoot && (
           <input
@@ -702,9 +742,88 @@ export default function ProblemePage({ session }) {
     setTimeout(() => setSavedMsg(""), 2000);
   }
 
+  const [aiSuggestions, setAiSuggestions] = useState({ actionsD3: [], causesD4: [] });
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState("");
+  const [d3ReloadKey, setD3ReloadKey] = useState(0);
+  const lastAiHashRef = useRef("");
+  const aiDebounceRef = useRef(null);
+
+  const d2Complete = !!(
+    metaDraft?.quoi?.trim() &&
+    metaDraft?.qui?.trim() &&
+    metaDraft?.ou?.trim() &&
+    metaDraft?.quand_txt?.trim() &&
+    metaDraft?.combien?.trim() &&
+    metaDraft?.comment_txt?.trim() &&
+    metaDraft?.pourquoi?.trim()
+  );
+
+  function runAiSuggestions() {
+    if (!problemeId || !d2Complete) return;
+    setAiLoading(true);
+    setAiError("");
+    apiPost("/api/ai/suggest", { id: problemeId })
+      .then((data) => {
+        setAiSuggestions({ actionsD3: data.actionsD3 || [], causesD4: data.causesD4 || [] });
+      })
+      .catch((e) => setAiError(e.message || "Erreur lors de la génération des suggestions."))
+      .finally(() => setAiLoading(false));
+  }
+
   useEffect(() => {
-    apiGet("/api/sheets").then(setAllSheets).catch(() => {});
-    apiGet("/api/users").then(setUsers).catch(() => {});
+    if (!d2Complete || !problemeId) return;
+    const hash = JSON.stringify({
+      quoi: metaDraft.quoi,
+      qui: metaDraft.qui,
+      ou: metaDraft.ou,
+      quand_txt: metaDraft.quand_txt,
+      combien: metaDraft.combien,
+      comment_txt: metaDraft.comment_txt,
+      pourquoi: metaDraft.pourquoi,
+    });
+    if (hash === lastAiHashRef.current) return;
+    if (aiDebounceRef.current) clearTimeout(aiDebounceRef.current);
+    aiDebounceRef.current = setTimeout(() => {
+      lastAiHashRef.current = hash;
+      runAiSuggestions();
+    }, 2000);
+    return () => clearTimeout(aiDebounceRef.current);
+  }, [d2Complete, metaDraft?.quoi, metaDraft?.qui, metaDraft?.ou, metaDraft?.quand_txt, metaDraft?.combien, metaDraft?.comment_txt, metaDraft?.pourquoi, problemeId]);
+
+  function acceptActionSuggestion(index) {
+    const item = aiSuggestions.actionsD3[index];
+    const fd = new FormData();
+    fd.append("type", "d3");
+    fd.append("action", item.action);
+    fd.append("pilote", item.pilote || "");
+    fd.append("date_debut", new Date().toISOString().split("T")[0]);
+    fd.append("date_fin", "");
+    fd.append("date_replanification", "");
+    fd.append("statut", "a_faire");
+    fetch(`/api/problemes/${problemeId}/actions`, { method: "POST", body: fd, credentials: "include" }).then(() => {
+      setAiSuggestions((prev) => ({ ...prev, actionsD3: prev.actionsD3.filter((_, i) => i !== index) }));
+      setD3ReloadKey((k) => k + 1);
+      refreshRecord();
+    });
+  }
+  function rejectActionSuggestion(index) {
+    setAiSuggestions((prev) => ({ ...prev, actionsD3: prev.actionsD3.filter((_, i) => i !== index) }));
+  }
+  function acceptCauseSuggestion(index) {
+    const item = aiSuggestions.causesD4[index];
+    apiPost(`/api/problemes/${problemeId}/causes`, { bloc: item.bloc, parent_id: null, niveau: 0, texte: item.texte }).then(() => {
+      setAiSuggestions((prev) => ({ ...prev, causesD4: prev.causesD4.filter((_, i) => i !== index) }));
+      refreshRecord();
+    });
+  }
+  function rejectCauseSuggestion(index) {
+    setAiSuggestions((prev) => ({ ...prev, causesD4: prev.causesD4.filter((_, i) => i !== index) }));
+  }
+
+  useEffect(() => {
+    apiGet("/api/sheets").then(setAllSheets).catch(() => { });
+    apiGet("/api/users").then(setUsers).catch(() => { });
   }, []);
 
   function loadRecord(recId) {
@@ -773,7 +892,7 @@ export default function ProblemePage({ session }) {
 
   function refreshRecord() {
     if (!problemeId) return;
-    apiGet(`/api/problemes/${problemeId}`).then(setRecord).catch(() => {});
+    apiGet(`/api/problemes/${problemeId}`).then(setRecord).catch(() => { });
   }
 
   const [newMemberSelection, setNewMemberSelection] = useState("");
@@ -982,13 +1101,12 @@ export default function ProblemePage({ session }) {
                     }}
                     disabled={locked}
                     title={locked ? "Complétez D0 et D1 pour accéder à cette étape" : undefined}
-                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-left text-xs font-semibold transition-all duration-150 ${
-                      locked
-                        ? "text-gray-300 cursor-not-allowed border border-transparent"
-                        : isActive
+                    className={`flex items-center gap-3 px-3 py-3 rounded-lg text-left text-xs font-semibold transition-all duration-150 ${locked
+                      ? "text-gray-300 cursor-not-allowed border border-transparent"
+                      : isActive
                         ? "bg-blue-50 text-blue-700 border border-blue-200"
                         : "text-gray-600 hover:bg-gray-50 border border-transparent"
-                    }`}
+                      }`}
                   >
                     {locked ? (
                       <FaLock className="text-gray-300 shrink-0 text-[10px]" />
@@ -1106,6 +1224,21 @@ export default function ProblemePage({ session }) {
             {activeStep === "D3" && baseUnlocked && (
               <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
                 <h2 className="text-base font-bold text-gray-700 mb-3">D3 — Actions de sécurisation</h2>
+                <AiSuggestionsPanel
+                  title="Suggestions IA — Actions de sécurisation"
+                  items={aiSuggestions.actionsD3}
+                  loading={aiLoading}
+                  error={aiError}
+                  onAccept={acceptActionSuggestion}
+                  onReject={rejectActionSuggestion}
+                  onRegenerate={runAiSuggestions}
+                  renderItem={(item) => (
+                    <>
+                      <span className="font-semibold text-gray-700">{item.action}</span>
+                      {item.pilote && <span className="text-gray-400"> — {item.pilote}</span>}
+                    </>
+                  )}
+                />
                 <ActionsTable
                   problemeId={problemeId}
                   type="d3"
@@ -1114,6 +1247,7 @@ export default function ProblemePage({ session }) {
                   causesOptions={[]}
                   allSheets={allSheets}
                   users={users}
+                  reloadKey={d3ReloadKey}
                   onChanged={refreshRecord}
                 />
               </div>
@@ -1130,6 +1264,23 @@ export default function ProblemePage({ session }) {
                     selectedCauseId={selectedCauseId}
                     onSelectCause={setSelectedCauseId}
                   />
+                  <AiSuggestionsPanel
+                    title="Suggestions IA — Causes potentielles (5M)"
+                    items={aiSuggestions.causesD4}
+                    loading={aiLoading}
+                    error={aiError}
+                    onAccept={acceptCauseSuggestion}
+                    onReject={rejectCauseSuggestion}
+                    onRegenerate={runAiSuggestions}
+                    renderItem={(item) => (
+                      <>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 rounded-full px-2 py-0.5 mr-1">
+                          {BLOCS.find((b) => b.key === item.bloc)?.label || item.bloc}
+                        </span>
+                        <span className="text-gray-700">{item.texte}</span>
+                      </>
+                    )}
+                  />
                   <div className="grid grid-cols-3 gap-3 mt-4">
                     {BLOCS.map((b) => (
                       <div key={b.key} className="border border-gray-100 rounded-xl p-3 flex flex-col gap-2">
@@ -1140,9 +1291,8 @@ export default function ProblemePage({ session }) {
                             <button
                               key={c.id}
                               onClick={() => setSelectedCauseId(c.id)}
-                              className={`flex items-center justify-between gap-1 text-left px-2 py-1.5 rounded-md text-[11px] transition-colors ${
-                                selectedCauseId === c.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                              }`}
+                              className={`flex items-center justify-between gap-1 text-left px-2 py-1.5 rounded-md text-[11px] transition-colors ${selectedCauseId === c.id ? "bg-blue-50 text-blue-700 border border-blue-200" : "bg-gray-50 text-gray-600 hover:bg-gray-100"
+                                }`}
                             >
                               <span className="truncate">{c.texte}</span>
                               <FaTrash
