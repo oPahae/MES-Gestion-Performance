@@ -214,3 +214,159 @@ CREATE TABLE probleme_actions (
   FOREIGN KEY (probleme_id) REFERENCES problemes(id) ON DELETE CASCADE,
   FOREIGN KEY (cause_id) REFERENCES probleme_causes(id) ON DELETE SET NULL
 );
+
+CREATE TABLE anomaly_notifications (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  sheet_id INT NOT NULL,
+  role ENUM('methodiste','logistique','qualite') NOT NULL,
+  destinataire_email VARCHAR(150) NOT NULL,
+  destinataire_nom VARCHAR(150) NOT NULL,
+  date_jour DATE NOT NULL,
+  message TEXT NOT NULL,
+  lu BOOLEAN NOT NULL DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (sheet_id) REFERENCES sheets(id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_postes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  numero INT NOT NULL UNIQUE,
+  titre VARCHAR(150) NOT NULL,
+  sous_titre VARCHAR(200) NOT NULL,
+  couleur VARCHAR(20) NOT NULL,
+  resultat_attendu TEXT NULL,
+  ordre INT NOT NULL
+);
+
+CREATE TABLE workflow_etapes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poste_id INT NOT NULL,
+  numero INT NOT NULL,
+  description TEXT NOT NULL,
+  FOREIGN KEY (poste_id) REFERENCES workflow_postes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_pieces (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poste_id INT NOT NULL,
+  nom VARCHAR(200) NOT NULL,
+  quantite INT NOT NULL DEFAULT 1,
+  FOREIGN KEY (poste_id) REFERENCES workflow_postes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_defauts (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  poste_id INT NULL,
+  categorie VARCHAR(150) NOT NULL,
+  libelle VARCHAR(200) NOT NULL,
+  est_bon BOOLEAN NOT NULL DEFAULT FALSE,
+  FOREIGN KEY (poste_id) REFERENCES workflow_postes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_runs (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  reference VARCHAR(40) NOT NULL UNIQUE,
+  statut ENUM('en_cours','termine','annule') NOT NULL DEFAULT 'en_cours',
+  started_by VARCHAR(150) NULL,
+  started_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  finished_at TIMESTAMP NULL
+);
+
+CREATE TABLE workflow_run_postes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  run_id INT NOT NULL,
+  poste_id INT NOT NULL,
+  valide BOOLEAN NOT NULL DEFAULT FALSE,
+  valide_at TIMESTAMP NULL,
+  controle_qualite_ok BOOLEAN NOT NULL DEFAULT FALSE,
+  UNIQUE KEY uniq_run_poste (run_id, poste_id),
+  FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  FOREIGN KEY (poste_id) REFERENCES workflow_postes(id) ON DELETE CASCADE
+);
+
+INSERT INTO workflow_postes
+(numero, titre, sous_titre, couleur, resultat_attendu, ordre)
+VALUES
+(1, 'POSTE 01', 'Montage de la tête de l''avion', '#C1440E',
+'Tête de l''avion assemblée avec pare-brise et support de train avant.', 1),
+(2, 'POSTE 02', 'Montage des ailes de l''avion', '#1E4FA0',
+'Ailes assemblées avec les deux réacteurs fixés symétriquement.', 2),
+(3, 'POSTE 03', 'Montage de la queue de l''avion', '#4C7A2A',
+'Queue assemblée avec dérive verticale jaune et rouge.', 3),
+(4, 'POSTE 04', 'Assemblage complet de l''avion', '#5B3E9E',
+'Avion complet, contrôlé et déposé en zone produits finis.', 4);
+
+INSERT INTO workflow_etapes (poste_id, numero, description) VALUES
+  (1, 1, 'Placer la brique rouge 1×6 pour former le corps inférieur de la tête.'),
+  (1, 2, 'Insérer la slope transparente 1×1 pour le pare-brise avant et la brique transparente 1×1 en arrière.'),
+  (1, 3, 'Ajouter la plaque rouge (1x2), la brique transparente, puis la blanche.'),
+  (1, 4, 'Poser la plaque blanche 1x2 et la plaque blanche longue 1×8 sur le dessus pour finaliser la tête.'),
+  (1, 5, 'Fixer le support cylindrique gris foncé sur la bague noire au dessous de la plaque blanche spéciale comme support.'),
+
+  (2, 1, 'Positionner la grande plaque noire 2×12 comme base principale des ailes.'),
+  (2, 2, 'Placer la brique rouge jumper 2x2 au centre comme point d’ancrage fuselage.'),
+  (2, 3, 'Ajouter les slopes rouges aux deux extrémités pour les embouts d’ailes.'),
+  (2, 4, 'Établir les deux réacteurs formés par l’ensemble (plaque grise noire × brique spéciale × cône gris × plaque ronde grise).'),
+  (2, 5, 'Positionner les deux ensembles à une position des extrémités de la grande plaque noire 2×12.'),
+
+  (3, 1, 'Poser la plaque jaune 1×6 verticalement comme base de la queue.'),
+  (3, 2, 'Assembler une brique rouge 1×4 à partir de la première extrémité et une brique rouge transparente 1×1 sur l’autre extrémité de la pièce jaune.'),
+  (3, 3, 'Fixer la plaque grise 1×3 horizontalement entre les deux plaques.'),
+  (3, 4, 'Fixer la brique rouge 1x2 au dessous de la brique transparente et de la plaque grise.'),
+  (3, 5, 'Placer le slope jaune grand sur cette brique rouge, puis installer le slope jaune petit juste devant.'),
+
+  (4, 1, 'Réceptionner les 3 sous-ensembles (tête, ailes, queue) et vérifier leur conformité visuelle.'),
+  (4, 2, 'Connecter la plaque noire des ailes au fuselage central comme base.'),
+  (4, 3, 'Fixer la tête de l’avion à l’avant via le pivot cylindrique.'),
+  (4, 4, 'Assembler la queue à l’arrière et aligner la dérive verticale.'),
+  (4, 5, 'Vérifier la solidité de tous les emboîtements et la stabilité globale.'),
+  (4, 6, 'Valider l’avion terminé et le déposer en zone produits finis.');
+
+INSERT INTO workflow_pieces (poste_id, nom, quantite) VALUES
+  (1, 'Plaque spéciale blanche 1x2', 1),
+  (1, 'Plaque rouge 1×6', 1),
+  (1, 'Brique blanche 1x1', 1),
+  (1, 'Plaque blanche 1×2', 1),
+  (1, 'Slope transparent 1×1', 1),
+  (1, 'Brique transparente 1×1', 1),
+  (1, 'Plaque blanche 1×8', 1),
+  (1, 'Plaque ronde noire', 1),
+  (1, 'Goupille grise', 1),
+
+  (2, 'Plaque gris noire 2×12', 1),
+  (2, 'Slope rouge 1x1', 2),
+  (2, 'Plaque 2x2 avec tenon central', 1),
+  (2, 'Brique spéciale 1x1 avec tenon latéral', 2),
+  (2, 'Cône 1x1 avec rainure supérieure grise', 2),
+  (2, 'Plaque ronde 1x1', 2),
+  (2, 'Plaque 1x3 grise noire', 2),
+
+  (3, 'Plaque jaune 1×6', 1),
+  (3, 'Plaque grise 1×3', 1),
+  (3, 'Brique rouge 1×2', 1),
+  (3, 'Brique transparente rouge 1×1', 1),
+  (3, 'Brique rouge 1×4', 1),
+  (3, 'Slope jaune grand', 1),
+  (3, 'Slope jaune petit', 1);
+
+INSERT INTO workflow_defauts (poste_id, categorie, libelle, est_bon) VALUES
+  (2, 'Réacteur', 'Réacteur bon', 1),
+  (2, 'Réacteur', 'Réacteur inversé', 0),
+  (2, 'Réacteur', 'Réacteur décalé', 0),
+
+  (2, 'Ailes d’avion', 'Ailes bonnes', 1),
+  (2, 'Ailes d’avion', 'Décalage des réacteurs / asymétrie des réacteurs', 0),
+  (2, 'Ailes d’avion', 'Décalage des réacteurs', 0),
+  (2, 'Ailes d’avion', 'Pièce spéciale non centrée', 0),
+  (2, 'Ailes d’avion', 'Position des slopes inversée', 0),
+
+  (3, 'Queue d’avion', 'Queue bon montage', 1),
+  (3, 'Queue d’avion', 'Inversion de la position de la brique transparente', 0),
+  (3, 'Queue d’avion', 'Inversion de la position de la plaque rouge', 0),
+  (3, 'Queue d’avion', 'Plaque décalée', 0),
+  (3, 'Queue d’avion', 'Pièce manquante', 0),
+
+  (1, 'Tête d’avion', 'Tête bon montage', 1),
+  (1, 'Tête d’avion', 'Oubli de la plaque spéciale blanche', 0),
+  (1, 'Tête d’avion', 'Inversion de la goupille', 0),
+  (1, 'Tête d’avion', 'Inversion des pièces', 0);
