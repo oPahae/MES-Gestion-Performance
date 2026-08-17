@@ -1,7 +1,7 @@
 import formidable from "formidable";
 import fs from "fs";
 import * as XLSX from "xlsx";
-import { query, getPool } from "../../lib/db";
+import { query, getPool } from "../../../lib/db";
 
 export const config = {
   api: {
