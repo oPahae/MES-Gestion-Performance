@@ -1025,50 +1025,7 @@ export default function ProblemePage({ session }) {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex bg-[#EEF1F6] text-xs">
-      <aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
-        <div>
-          <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-            <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center">
-              <FaCogs className="text-white text-sm" />
-            </div>
-            <span className="font-bold tracking-wide text-base">
-              MES <span className="font-extrabold">PERFORMANCE</span>
-            </span>
-          </Link>
-          <div className="px-5 pt-5 pb-2 text-xs tracking-wider text-gray-400 font-semibold">SÉLECTION</div>
-          <nav className="px-3 flex flex-col gap-1">
-            {allSheets.map((s) => (
-              <Link key={s.id} href={`/dashboard/${s.code}`} className="flex items-center gap-3 px-3 py-3 rounded-lg font-medium text-gray-300 hover:bg-white/5">
-                {s.type === "machine" ? <FaCogs className="text-sm" /> : <FaPlane className="text-sm" />}
-                {s.label}
-              </Link>
-            ))}
-            <Link href="/supervision" className="flex items-center gap-3 px-3 py-3 rounded-lg text-gray-300 hover:bg-white/5 text-left">
-              <FaChartBar className="text-sm" />
-              Supervision hebdomadaire
-            </Link>
-            <Link href="/rp" className="flex items-center gap-3 px-3 py-3 rounded-lg bg-[#7A1E22] text-white text-left">
-              <FaClipboardList className="text-sm" />
-              Résolution de problèmes
-            </Link>
-          </nav>
-        </div>
-        <div className="px-3 pb-4">
-          <div className="px-1 pt-1.5 pb-1 text-[10px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
-          {session.isAdmin &&
-            <Link href="/settings" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-white hover:bg-white/5">
-              <FaCog className="text-sm" />
-              Paramètres
-            </Link>
-          }
-          <Link href="/api/auth/logout" className="w-full flex items-center gap-3 px-3 py-3 rounded-lg text-red-400 hover:bg-white/5">
-            <FaSignOutAlt className="text-sm" />
-            LOGOUT
-          </Link>
-        </div>
-      </aside>
-
+    <div className="h-screen overflow-hidden flex bg-[#EEF1F6] text-xs">
       <div className="flex-1 flex flex-col min-w-0">
         <header className="shrink-0 bg-white border-b border-gray-200 h-[64px] flex items-center justify-between px-6">
           <div className="flex items-center gap-3">

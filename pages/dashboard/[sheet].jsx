@@ -610,6 +610,7 @@ export default function DashboardPage({ session }) {
         if (found) setSheet(found);
         else setLoadError("Feuille inconnue.");
       }
+      console.log(sheet)
     }).catch((e) => setLoadError(e.message));
   }, [sheetCode]);
 
@@ -1040,58 +1041,16 @@ export default function DashboardPage({ session }) {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex bg-[#EEF1F6] text-[6px]">
-      <aside className="w-[105px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
-        <div>
-          <Link href="/" className="flex flex-col items-center gap-1 px-2.5 py-2.5 border-b border-white/10">
-            <img src="/banner.png" className="w-full" />
-            <span className="font-bold tracking-wide text-[8px]">
-              MES <span className="font-extrabold">PERFORMANCE</span>
-            </span>
-          </Link>
-          <div className="px-2.5 pt-2.5 pb-1 text-[6px] tracking-wider text-gray-400 font-semibold">SÉLECTION</div>
-          <nav className="px-1.5 flex flex-col gap-0.5">
-            {allSheets.map((s) => (
-              <Link
-                key={s.id}
-                href={`/dashboard/${s.code}`}
-                className={`flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg font-medium ${s.code === sheetCode ? "bg-[#7A1E22] text-white" : "text-gray-300 hover:bg-white/5"}`}
-              >
-                {s.type === "machine" ? <FaCogs className="text-[7px]" /> : <FaPlane className="text-[7px]" />}
-                {s.label}
-              </Link>
-            ))}
-            <Link href="/supervision" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
-              <FaChartBar className="text-[7px]" />
-              Supervision hebdomadaire
-            </Link>
-            <Link href="/rp" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
-              <FaClipboardList className="text-[7px]" />
-              Résolution de problèmes
-            </Link>
-          </nav>
-        </div>
-        <div className="px-1.5 pb-2">
-          {session.isAdmin &&
-            <>
-              <div className="px-1 pt-1.5 pb-1 text-[6px] tracking-wider text-gray-400 font-semibold border-t border-white/10">PARAMÈTRES GÉNÉRAUX</div>
-              <Link href="/settings" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5">
-                <FaCog className="text-[7px]" />
-                Paramètres
-              </Link>
-            </>
-          }
-          <Link href="/api/auth/logout" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-red-400 hover:bg-white/5 mt-1">
-            <FaSignOutAlt className="text-[7px]" />
-            LOGOUT
-          </Link>
-        </div>
-      </aside>
-
+    <div className="h-screen overflow-hidden flex bg-[#EEF1F6] text-[6px]">
       <div className="flex-1 flex flex-col min-w-0">
         <header className="shrink-0 bg-white border-b border-gray-200">
           <div className="h-[32px] flex items-center justify-between px-3">
-            <h1 className="font-bold text-[9px] text-gray-800 tracking-tight">TABLEAU DE BORD - {sheet.label.toUpperCase()}</h1>
+            <div className="flex gap-2 justify-center items-center">
+              <h1 className="font-bold text-[9px] text-gray-800 tracking-tight">TABLEAU DE BORD - {sheet.label.toUpperCase()}</h1>
+              <Link href={`/prediction?sheet=${sheet.code}`} className={`px-1.5 py-1 rounded-md text-[6px] font-semibold ${periode === "mois" ? "bg-red-600 text-white" : "bg-gray-100 text-gray-600"}`}>
+                Voir les prédictions
+              </Link>
+            </div>
             <div className="flex items-center gap-1">
               <span className="text-[6px] font-semibold text-gray-400 mr-0.5">PÉRIODE</span>
               <button onClick={() => setPeriode("semaine")} className={`px-1.5 py-1 rounded-md text-[6px] font-semibold ${periode === "semaine" ? "bg-blue-600 text-white" : "bg-gray-100 text-gray-600"}`}>
