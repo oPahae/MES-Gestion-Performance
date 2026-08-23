@@ -233,51 +233,7 @@ export default function PredictionPage() {
   }
 
   return (
-    <div className="w-screen h-screen overflow-hidden flex bg-[#EEF1F6] text-[6px]">
-      <aside className="w-[105px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
-        <div>
-          <Link href="/" className="flex items-center gap-1 px-2.5 py-2.5 border-b border-white/10">
-            <div className="w-4 h-4 rounded-md bg-white/10 flex items-center justify-center">
-              <FaCogs className="text-white text-[7px]" />
-            </div>
-            <span className="font-bold tracking-wide text-[8px]">
-              MES <span className="font-extrabold">PERFORMANCE</span>
-            </span>
-          </Link>
-          <div className="px-2.5 pt-2.5 pb-1 text-[6px] tracking-wider text-gray-400 font-semibold">SÉLECTION</div>
-          <nav className="px-1.5 flex flex-col gap-0.5">
-            {allSheets.map((s) => (
-              <Link
-                key={s.id}
-                href={`/dashboard/${s.code}`}
-                className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg font-medium text-gray-300 hover:bg-white/5"
-              >
-                {s.type === "machine" ? <FaCogs className="text-[7px]" /> : <FaPlane className="text-[7px]" />}
-                {s.label}
-              </Link>
-            ))}
-            <Link href="/supervision" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
-              <FaChartBar className="text-[7px]" />
-              Supervision hebdomadaire
-            </Link>
-            <Link href="/rp" className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-gray-300 hover:bg-white/5 text-left">
-              <FaClipboardList className="text-[7px]" />
-              Résolution de problèmes
-            </Link>
-            <Link href={`/prediction?sheet=${sheet.code}`} className="flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg bg-[#7A1E22] text-white text-left">
-              <FaChartBar className="text-[7px]" />
-              Prédiction
-            </Link>
-          </nav>
-        </div>
-        <div className="px-1.5 pb-2">
-          <Link href="/api/auth/logout" className="w-full flex items-center gap-1.5 px-1.5 py-1.5 rounded-lg text-red-400 hover:bg-white/5">
-            <FaSignOutAlt className="text-[7px]" />
-            QUITTER
-          </Link>
-        </div>
-      </aside>
-
+    <div className="h-screen overflow-hidden flex bg-[#EEF1F6] text-[6px]">
       <div className="flex-1 flex flex-col min-w-0">
         <header className="shrink-0 bg-white border-b border-gray-200">
           <div className="h-[32px] flex items-center justify-between px-3">
