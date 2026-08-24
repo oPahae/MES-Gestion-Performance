@@ -6,8 +6,8 @@ import { verifyAuth } from "../middlewares/auth";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
+  const [email, setEmail] = useState("souamaya.elyoussoufi@uic.ac.ma");
+  const [password, setPassword] = useState("111111");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
 
