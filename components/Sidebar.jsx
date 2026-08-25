@@ -21,11 +21,11 @@ export default function Sidebar({ variant }) {
   const [session, setSession] = useState(null);
 
   useEffect(() => {
-    apiGet("/api/sheets").then(setAllSheets).catch(() => {});
+    apiGet("/api/sheets").then(setAllSheets).catch(() => { });
   }, []);
 
   useEffect(() => {
-    apiGet("/api/me").then(setSession).catch(() => {});
+    apiGet("/api/me").then(setSession).catch(() => { });
   }, []);
 
   const sheetCode = router.query.sheet;
@@ -76,14 +76,14 @@ export default function Sidebar({ variant }) {
           <FaRobot className={iconSize} />
           Assistant IA
         </Link>
-        <Link href="/notifications" className={getLinkStyle("/notifications", isWide)}>
+        {!isAdmin && <Link href="/notifications" className={getLinkStyle("/notifications", isWide)}>
           <FaBell className={iconSize} />
           Notifications
-        </Link>
-        <Link href="/workflow" className={getLinkStyle("/workflow", isWide)}>
+        </Link>}
+        {isAdmin && <Link href="/workflow" className={getLinkStyle("/workflow", isWide)}>
           <FaIndustry className={iconSize} />
           Workflow de production
-        </Link>
+        </Link>}
         <Link
           href={`/prediction${sheetCode ? `?sheet=${sheetCode}` : ""}`}
           className={getLinkStyle("/prediction", isWide)}
@@ -95,7 +95,6 @@ export default function Sidebar({ variant }) {
     );
   };
 
-  // Contenu commun pour le bas du sidebar (logout + paramètres)
   const renderBottomSection = (isWide) => {
     const iconSize = isWide ? "text-sm" : "text-[7px]";
     return (
@@ -119,13 +118,12 @@ export default function Sidebar({ variant }) {
     );
   };
 
-  // Variant pour les sidebars étroits (dashboard, supervision, prediction)
   if (variant === "dashboard" || variant === "supervision" || variant === "prediction") {
     return (
       <aside className="w-[105px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
           <Link href="/" className="flex flex-col items-center gap-1 px-2.5 py-2.5 border-b border-white/10">
-            <img src="/banner.png" className="w-full" />
+            <img src="/banner.png" className="w-12" />
             <span className="font-bold tracking-wide text-[8px]">
               MES <span className="font-extrabold">PERFORMANCE</span>
             </span>
@@ -143,15 +141,13 @@ export default function Sidebar({ variant }) {
     return (
       <aside className="w-[210px] shrink-0 bg-[#0B1526] text-white flex flex-col justify-between">
         <div>
-          <Link href="/" className="flex items-center gap-2 px-5 py-5 border-b border-white/10">
-            <div className="w-8 h-8 rounded-md bg-white/10 flex items-center justify-center">
-              <FaCogs className="text-white text-sm" />
-            </div>
+          <Link href="/" className="flex flex-col items-center gap-2 px-5 py-5 border-b border-white/10">
+            <img src="/banner.png" className="h-10" />
             <span className="font-bold tracking-wide text-base">
               MES <span className="font-extrabold">PERFORMANCE</span>
             </span>
           </Link>
-          <div className="px-5 pt-5 pb-2 text-xs tracking-wider text-gray-400 font-semibold">SÉLECTION</div>
+          <div className="px-4 pt-1.5 pb-1 text-[10px] tracking-wider text-gray-400 font-semibold border-t border-white/10">SÉLECTION</div>
           <nav className="px-3 flex flex-col gap-1">{renderNavLinks(true)}</nav>
         </div>
         {renderBottomSection(true)}

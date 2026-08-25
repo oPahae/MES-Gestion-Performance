@@ -14,7 +14,15 @@ async function loadFull(id) {
     "SELECT id, bloc, parent_id, niveau, texte, cause_racine FROM probleme_causes WHERE probleme_id = ? ORDER BY id",
     [id]
   );
-  const actions = await query("SELECT id, type, cause_id FROM probleme_actions WHERE probleme_id = ?", [id]);
+  const actions = await query(
+    `SELECT id, type, cause_id, action, pilote,
+   DATE_FORMAT(date_debut, '%Y-%m-%d') AS date_debut,
+   DATE_FORMAT(date_fin, '%Y-%m-%d') AS date_fin,
+   DATE_FORMAT(date_replanification, '%Y-%m-%d') AS date_replanification,
+   statut
+   FROM probleme_actions WHERE probleme_id = ?`,
+    [id]
+  );
   return {
     id: p.id,
     numero: p.numero,
@@ -42,7 +50,17 @@ async function loadFull(id) {
       texte: c.texte,
       cause_racine: !!c.cause_racine,
     })),
-    actions: actions.map((a) => ({ id: a.id, type: a.type, cause_id: a.cause_id })),
+    actions: actions.map((a) => ({
+      id: a.id,
+      type: a.type,
+      cause_id: a.cause_id,
+      action: a.action,
+      pilote: a.pilote,
+      date_debut: a.date_debut,
+      date_fin: a.date_fin,
+      date_replanification: a.date_replanification,
+      statut: a.statut,
+    })),
   };
 }
 

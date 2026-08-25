@@ -1,7 +1,13 @@
 import { query } from "../../../lib/db";
+import { ALL_ROLES } from "../../../lib/userLogic";
 
 const EXTERNAL_AI_URL = "https://pahae-utils.vercel.app/api/responseAI";
 const VALID_BLOCS = ["milieu", "methode", "machine", "main_oeuvre", "matiere"];
+
+// async function fetchValidRoles() {
+//   const rows = await query("SELECT DISTINCT role FROM users WHERE actif = TRUE");
+//   return rows.map((row) => row.role);
+// }
 
 async function fetchHistoricalCauses(currentId) {
   const rows = await query(
@@ -56,6 +62,11 @@ export default async function handler(req, res) {
   if (!id) return res.status(400).json({ error: "id requis" });
 
   try {
+    const validRoles = ALL_ROLES;
+    // if (!validRoles.length) {
+    //   return res.status(500).json({ error: "Aucun rôle actif trouvé dans la base de données." });
+    // }
+
     const rows = await query(
       "SELECT probleme, ligne, quoi, qui, ou, quand_txt, combien, comment_txt, pourquoi FROM problemes WHERE id = ?",
       [id]
@@ -88,26 +99,42 @@ export default async function handler(req, res) {
     let partialError = "";
 
     try {
-      const dataD3 = { probleme: p.probleme, ligne: p.ligne, qqoqccp, historique_actions: historiqueActions };
+      const dataD3 = {
+        probleme: p.probleme,
+        ligne: p.ligne,
+        qqoqccp,
+        historique_actions: historiqueActions,
+        roles_valides: validRoles,
+      };
       const promptD3 = [
         "Expert 8D industriel. À partir du QQOQCCP et de l'historique, propose 3 actions de sécurisation immédiates (D3).",
+        `Les pilotes doivent être choisis parmi les rôles suivants : ${validRoles.join(", ")}.`,
         "Réponds UNIQUEMENT en JSON compact, sans texte autour, sans retour à la ligne inutile:",
         '{"actions_d3":[{"action":"...","pilote":"..."}]}',
-        "Chaque action en moins de 15 mots. Chaque pilote en 2-3 mots (rôle générique). Maximum 3 actions.",
+        "Chaque action en moins de 15 mots. Chaque pilote doit être l'un des rôles fournis. Maximum 3 actions.",
       ].join(" ");
+
       const parsed = await callAi(dataD3, promptD3);
       actionsD3 = Array.isArray(parsed.actions_d3)
         ? parsed.actions_d3
-            .filter((a) => a && a.action)
-            .slice(0, 5)
-            .map((a) => ({ action: String(a.action).slice(0, 255), pilote: a.pilote ? String(a.pilote).slice(0, 150) : "" }))
+          .filter((a) => a && a.action && validRoles.includes(a.pilote)) // Valider que le pilote est valide
+          .slice(0, 5)
+          .map((a) => ({
+            action: String(a.action).slice(0, 255),
+            pilote: a.pilote ? String(a.pilote).slice(0, 150) : "",
+          }))
         : [];
     } catch (e) {
       partialError = e.message;
     }
 
     try {
-      const dataD4 = { probleme: p.probleme, ligne: p.ligne, qqoqccp, historique_causes: historiqueCauses };
+      const dataD4 = {
+        probleme: p.probleme,
+        ligne: p.ligne,
+        qqoqccp,
+        historique_causes: historiqueCauses,
+      };
       const promptD4 = [
         "Expert 8D industriel. À partir du QQOQCCP et de l'historique, propose 5 causes potentielles réparties sur les 5M (Ishikawa).",
         "Réponds UNIQUEMENT en JSON compact, sans texte autour, sans retour à la ligne inutile:",
@@ -118,9 +145,9 @@ export default async function handler(req, res) {
       const parsed = await callAi(dataD4, promptD4);
       causesD4 = Array.isArray(parsed.causes_d4)
         ? parsed.causes_d4
-            .filter((c) => c && c.texte && VALID_BLOCS.includes(c.bloc))
-            .slice(0, 8)
-            .map((c) => ({ bloc: c.bloc, texte: String(c.texte).slice(0, 255) }))
+          .filter((c) => c && c.texte && VALID_BLOCS.includes(c.bloc))
+          .slice(0, 8)
+          .map((c) => ({ bloc: c.bloc, texte: String(c.texte).slice(0, 255) }))
         : [];
     } catch (e) {
       partialError = partialError ? `${partialError} / ${e.message}` : e.message;

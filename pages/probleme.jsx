@@ -30,6 +30,16 @@ import { ROLE_LABELS } from "../lib/userLogic";
 import UserSelect from "../components/UserSelect";
 import { verifyAuth } from "../middlewares/auth";
 
+const DEFAULT_META = {
+  quoi: `Un défaut dimensionnel a été constaté sur une pièce aéronautique usinée : le diamètre d’un trou de fixation est supérieur à la tolérance spécifiée. Le diamètre mesuré est de 10,15 mm au lieu de 10,00 ± 0,05 mm.`,
+  qui: `Le problème a été détecté par l'opérateur du contrôle qualité lors de l'inspection finale. Il a été généré lors de l'opération d'usinage par l'opérateur de la machine CNC, suite à un mauvais réglage ou à l'usure de l'outil. Le produit a été contrôlé par le technicien qualité à l'aide d'instruments de mesure calibrés.`,
+  ou: `Le défaut a été détecté au poste de contrôle qualité, après l'opération d'usinage. Il a été généré sur la machine CNC du poste d'usinage, au niveau de l'outil utilisé pour réaliser le perçage. Le défaut se situe sur le trou de fixation situé sur la partie supérieure de la pièce.`,
+  quand_txt: `Le problème est apparu pendant l'opération d'usinage du matin, probablement après une augmentation progressive de l'usure de l'outil. Il a été détecté lors du contrôle de la pièce en fin de production. Le défaut est apparu sur 8 pièces parmi 100 produites, principalement après plusieurs heures de fonctionnement de la machine.`,
+  combien: `Au total, 8 pièces non conformes sur 100 ont été détectées. Parmi elles, 5 pièces ont pu être retouchées, tandis que 3 pièces ont été déclarées irréparables, entraînant une perte de matière, de temps machine et de coût de production.`,
+  comment_txt: `Le problème s'est produit dans des conditions où l'outil de perçage était progressivement usé et où aucun contrôle intermédiaire du diamètre n'était réalisé. Le défaut a été détecté lors du contrôle final grâce à une mesure précise du diamètre du trou à l'aide d'un instrument de contrôle calibré, qui a révélé un dépassement de la tolérance.`,
+  pourquoi: `Ce défaut est critique car un trou de fixation hors tolérance peut provoquer un mauvais assemblage de la pièce, compromettre la résistance mécanique de l'ensemble et entraîner le rejet de la pièce selon les exigences de qualité aéronautique. Le problème sera considéré comme résolu lorsque 100 % des pièces produites respecteront la tolérance de 10,00 ± 0,05 mm, avec un suivi régulier de l'usure de l'outil et des contrôles intermédiaires pendant la production.`
+};
+
 function fmtDateTime(iso) {
   if (!iso) return "—";
   const d = new Date(iso);
@@ -732,7 +742,16 @@ export default function ProblemePage({ session }) {
   const [activeStep, setActiveStep] = useState("D0");
   const [selectedCauseId, setSelectedCauseId] = useState(null);
 
-  const [metaDraft, setMetaDraft] = useState(null);
+  const [metaDraft, setMetaDraft] = useState({
+    probleme: "",
+    ligne: "",
+    pilote: "",
+    ...DEFAULT_META,
+    autre_ligne_existe: false,
+    validation_nom: "",
+    validation_date: "",
+    validation_signature: false
+  });
   const loadedMetaRef = useRef("{}");
   const metaSaveTimeout = useRef(null);
   const [savedMsg, setSavedMsg] = useState("");
@@ -834,13 +853,13 @@ export default function ProblemePage({ session }) {
           probleme: data.probleme || "",
           ligne: data.ligne || "",
           pilote: data.pilote || "",
-          quoi: data.quoi || "",
-          qui: data.qui || "",
-          ou: data.ou || "",
-          quand_txt: data.quand_txt || "",
-          combien: data.combien || "",
-          comment_txt: data.comment_txt || "",
-          pourquoi: data.pourquoi || "",
+          quoi: data.quoi || DEFAULT_META.quoi,
+          qui: data.qui || DEFAULT_META.qui,
+          ou: data.ou || DEFAULT_META.ou,
+          quand_txt: data.quand_txt || DEFAULT_META.quand_txt,
+          combien: data.combien || DEFAULT_META.combien,
+          comment_txt: data.comment_txt || DEFAULT_META.comment_txt,
+          pourquoi: data.pourquoi || DEFAULT_META.pourquoi,
           autre_ligne_existe: !!data.autre_ligne_existe,
           validation_nom: data.validation_nom || "",
           validation_date: data.validation_date || "",
@@ -868,7 +887,6 @@ export default function ProblemePage({ session }) {
     apiPost("/api/problemes", {}).then((res) => {
       router.replace(`/probleme?id=${res.id}`);
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [routerReady, queryId]);
 
   useEffect(() => {
