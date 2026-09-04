@@ -89,7 +89,7 @@ export default function Home({ isAdmin }) {
       </header>
 
       <main className="flex-1 flex flex-col items-center justify-center px-6">
-        <h1 className="text-white text-2xl font-bold mb-2 text-center">Sélectionnez une feuille</h1>
+        <h1 className="text-white text-2xl font-bold mb-2 text-center">Sélectionnez unee feuille</h1>
         <p className="text-gray-400 text-sm mb-10 text-center">Choisissez la ligne, la machine ou la vue de supervision à consulter</p>
 
         {error && <p className="text-red-400 text-sm mb-6">{error}</p>}
