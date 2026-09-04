@@ -4,7 +4,7 @@ import Head from "next/head";
 import "../styles/globals.css";
 import Sidebar from "../components/Sidebar";
 
-const NO_SIDEBAR_PATHS = ["/login", "/"];
+const NO_SIDEBAR_PATHS = ["/login", "/", "/mobile"];
 
 function getSidebarConfig(pathname) {
   if (pathname.startsWith("/dashboard")) return { variant: "dashboard", compact: true };
