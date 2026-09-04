@@ -1,6 +1,7 @@
 import { serialize } from "cookie";
 
 export default function handler(req, res) {
+  const isMobile = req.query || false;
   if (req.method === "GET" || req.method === "POST") {
     res.setHeader(
       "Set-Cookie",
@@ -12,7 +13,7 @@ export default function handler(req, res) {
         expires: new Date(0),
       })
     );
-    res.writeHead(302, { Location: "/login" });
+    res.writeHead(302, { Location: `${isMobile ? '/mobile' : '' }/login` });
     res.end();
     return;
   }
