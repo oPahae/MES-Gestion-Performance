@@ -31,7 +31,7 @@ export default function Home({ isAdmin }) {
     const Icon = ICONS[s.type] || FaCogs;
     return (
       <Link
-        href={`./dashboard/${s.code}`} 
+        href={`dashboard/${s.code}`} 
         className={`group relative z-10 w-72 h-36 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-400/50 rounded-2xl px-6 py-2 flex flex-col justify-center items-center gap-3 transition ${className}`}
       >
         <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
