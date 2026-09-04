@@ -9,7 +9,7 @@ import {
   FaChevronDown,
   FaChevronLeft,
   FaChevronRight,
-  FaClipboardList,
+  FaClipboardList, 
   FaExclamationTriangle,
   FaTimes,
   FaTasks,
