@@ -81,7 +81,7 @@ export default function Home({ isAdmin }) {
             <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
               <FaArrowRight className="text-red-500 text-xs" />
             </div>
-            <Link href="/api/auth/logout" className="text-red-500 font-bold tracking-wide text-xs">
+            <Link href={`/api/auth/logout?isMobile=${true}`} className="text-red-500 font-bold tracking-wide text-xs">
               LOGOUT
             </Link>
           </div>
