@@ -31,7 +31,7 @@ export default function Home({ isAdmin }) {
     const Icon = ICONS[s.type] || FaCogs;
     return (
       <Link
-        href={`/dashboard/${s.code}`}
+        href={`./dashboard/${s.code}`}
         className={`group relative z-10 w-72 h-36 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-blue-400/50 rounded-2xl px-6 py-2 flex flex-col justify-center items-center gap-3 transition ${className}`}
       >
         <div className="w-12 h-12 rounded-xl bg-blue-500/20 flex items-center justify-center">
@@ -50,7 +50,7 @@ export default function Home({ isAdmin }) {
 
   const SupervisionCard = ({ className = "" }) => (
     <Link
-      href="/supervision"
+      href="./supervision"
       className={`group relative z-10 w-80 h-36 bg-white/5 hover:bg-white/10 border border-white/10 hover:border-amber-400/50 rounded-2xl px-6 py-2 flex flex-col justify-center items-center gap-3 transition ${className}`}
     >
       <div className="w-12 h-12 rounded-xl bg-amber-500/20 flex items-center justify-center">
@@ -68,7 +68,7 @@ export default function Home({ isAdmin }) {
 
   return (
     <div className="min-h-screen w-full bg-[#0B1526] flex flex-col noscroll">
-      <header className="flex flex-col justify-between items-center gap-3 px-8 pt-6">
+      <header className="flex flex justify-between items-center gap-3 px-8 pt-6">
         <div className="flex gap-2 justify-center items-center">
           <img src="/logo.png" className="w-12 h-12 rounded-sm" />
           <span className="text-white font-bold tracking-wide text-xl">
@@ -77,16 +77,6 @@ export default function Home({ isAdmin }) {
         </div>
 
         <div className="flex gap-4 justify-center items-center">
-          {isAdmin &&
-            <div className="flex gap-2 justify-center items-center">
-              <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
-                <FaCog className="text-white text-xs" />
-              </div>
-              <Link href="/settings" className="text-white font-bold tracking-wide text-xs">
-                Paramètres
-              </Link>
-            </div>
-          }
           <div className="flex gap-2 justify-center items-center">
             <div className="w-6 h-6 rounded-lg bg-white/10 flex items-center justify-center">
               <FaArrowRight className="text-red-500 text-xs" />
@@ -151,7 +141,7 @@ export async function getServerSideProps({ req, res }) {
   if (!user) {
     return {
       redirect: {
-        destination: "/login",
+        destination: "./login",
         permanent: false,
       },
     };
