@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import Link from "next/link";
 import { FaPlane, FaCogs, FaChartBar, FaArrowRight, FaCog } from "react-icons/fa";
-import { apiGet } from "../lib/apiClient";
-import { verifyAuth } from "../middlewares/auth";
+import { apiGet } from "../../lib/apiClient";
+import { verifyAuth } from "../../middlewares/auth";
 
 const ICONS = { ligne: FaPlane, machine: FaCogs };
 const CARD_HEIGHT = 144;
