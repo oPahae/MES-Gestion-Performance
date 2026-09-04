@@ -4,7 +4,7 @@ import { FaCogs, FaEnvelope, FaLock, FaSignInAlt } from "react-icons/fa";
 import { apiPost } from "../../lib/apiClient";
 import { verifyAuth } from "../../middlewares/auth";
 
-export default function LoginPage() {
+export default function LoginPage() { 
   const router = useRouter();
   const [email, setEmail] = useState("souamaya.elyoussoufi@uic.ac.ma");
   const [password, setPassword] = useState("111111");
