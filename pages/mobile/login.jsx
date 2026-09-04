@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { useRouter } from "next/router";
 import { FaCogs, FaEnvelope, FaLock, FaSignInAlt } from "react-icons/fa";
-import { apiPost } from "../lib/apiClient";
-import { verifyAuth } from "../middlewares/auth";
+import { apiPost } from "../../lib/apiClient";
+import { verifyAuth } from "../../middlewares/auth";
 
 export default function LoginPage() {
   const router = useRouter();
