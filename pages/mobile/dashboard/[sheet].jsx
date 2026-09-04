@@ -1950,7 +1950,7 @@ export async function getServerSideProps({
   if (!user) {
     return {
       redirect: {
-        destination: "/login",
+        destination: "./login",
         permanent: false,
       },
     };
