@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     apiPost("/api/auth/login", { email: email.trim(), password })
-      .then(() => router.push("/"))
+      .then(() => router.push("./"))
       .catch((err) => {
         setError(err.message || "Erreur de connexion.");
         setLoading(false);
