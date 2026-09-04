@@ -59,7 +59,7 @@ export default function App({ Component, pageProps }) {
   // Pages qui ne doivent jamais avoir le Sidebar
   const hideSidebar =
     NO_SIDEBAR_PATHS.includes(router.pathname) ||
-    router.pathname.startsWith("/mobile/dashboard");
+    router.pathname.startsWith("/mobile");
 
   const { variant, compact } = getSidebarConfig(
     router.pathname
