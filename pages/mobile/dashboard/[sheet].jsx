@@ -1046,7 +1046,7 @@ export default function MobileDashboardPage() {
           </p>
 
           <Link
-            href="/"
+            href="./"
             className="inline-flex items-center justify-center gap-2 mt-5 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-semibold"
           >
             <FaArrowLeft />
@@ -1071,7 +1071,7 @@ export default function MobileDashboardPage() {
         <div className="px-4 py-3">
           <div className="flex items-center justify-between gap-3">
             <Link
-              href="/"
+              href="./"
               className="w-10 h-10 shrink-0 rounded-xl bg-slate-100 flex items-center justify-center text-slate-600 active:scale-95"
             >
               <FaArrowLeft size={14} />
