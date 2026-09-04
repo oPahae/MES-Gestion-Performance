@@ -20,7 +20,7 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
     apiPost("/api/auth/login", { email: email.trim(), password })
-      .then(() => router.push("./"))
+      .then(() => router.push("/mobile/"))
       .catch((err) => {
         setError(err.message || "Erreur de connexion.");
         setLoading(false);
@@ -94,7 +94,7 @@ export async function getServerSideProps({ req, res }) {
   if (user && user.id) {
     return {
       redirect: {
-        destination: "./",
+        destination: "/mobile/",
         permanent: false,
       },
     };
