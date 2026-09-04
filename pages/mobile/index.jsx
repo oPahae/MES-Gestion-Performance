@@ -68,7 +68,7 @@ export default function Home({ isAdmin }) {
 
   return (
     <div className="min-h-screen w-full bg-[#0B1526] flex flex-col noscroll">
-      <header className="flex justify-between items-center gap-3 px-8 pt-6">
+      <header className="flex flex-col justify-between items-center gap-3 px-8 pt-6">
         <div className="flex gap-2 justify-center items-center">
           <img src="/logo.png" className="w-12 h-12 rounded-sm" />
           <span className="text-white font-bold tracking-wide text-xl">
