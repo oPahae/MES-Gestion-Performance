@@ -1209,7 +1209,7 @@ export default function MobileSupervisionPage({
           </p>
 
           <Link
-            href="./"
+            href="/mobile/"
             className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-xs font-semibold"
           >
             <FaArrowLeft size={11} />
@@ -1234,7 +1234,7 @@ export default function MobileSupervisionPage({
         <div className="px-4 py-3">
           <div className="flex items-center gap-3">
             <Link
-              href="./"
+              href="/mobile/"
               className="w-10 h-10 rounded-xl bg-slate-100 text-slate-600 flex items-center justify-center shrink-0 active:scale-95"
             >
               <FaArrowLeft size={13} />
@@ -2636,7 +2636,7 @@ export async function getServerSideProps({
   if (!user) {
     return {
       redirect: {
-        destination: "./login",
+        destination: "/mobile/login",
         permanent: false,
       },
     };
