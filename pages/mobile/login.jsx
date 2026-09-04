@@ -94,7 +94,7 @@ export async function getServerSideProps({ req, res }) {
   if (user && user.id) {
     return {
       redirect: {
-        destination: "/",
+        destination: "./",
         permanent: false,
       },
     };
