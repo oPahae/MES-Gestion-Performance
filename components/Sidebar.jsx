@@ -80,17 +80,17 @@ export default function Sidebar({ variant }) {
           <FaBell className={iconSize} />
           Notifications
         </Link>}
-        {isAdmin && <Link href="/workflow" className={getLinkStyle("/workflow", isWide)}>
+        <Link href="/workflow" className={getLinkStyle("/workflow", isWide)}>
           <FaIndustry className={iconSize} />
           Workflow de production
-        </Link>}
-        <Link
+        </Link>
+        {/* <Link
           href={`/prediction${sheetCode ? `?sheet=${sheetCode}` : ""}`}
           className={getLinkStyle("/prediction", isWide)}
         >
           <FaChartLine className={iconSize} />
           Prédictions
-        </Link>
+        </Link> */}
       </>
     );
   };

@@ -14,10 +14,14 @@ export default async function handler(req, res) {
         return;
       }
       const progress = await query(
-        "SELECT poste_id, valide, valide_at, controle_qualite_ok FROM workflow_run_postes WHERE run_id = ?",
+        "SELECT poste_id, valide, valide_at, controle_qualite_ok, assigned_user FROM workflow_run_postes WHERE run_id = ?",
         [id]
       );
-      res.status(200).json({ run: runRows[0], progress });
+      const etapeProgress = await query(
+        "SELECT re.etape_id, re.valide, re.valide_at, e.poste_id FROM workflow_run_etapes re JOIN workflow_etapes e ON e.id = re.etape_id WHERE re.run_id = ?",
+        [id]
+      );
+      res.status(200).json({ run: runRows[0], progress, etapeProgress });
     } catch (err) {
       res.status(500).json({ error: err.message });
     }

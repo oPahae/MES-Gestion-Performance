@@ -279,9 +279,21 @@ CREATE TABLE workflow_run_postes (
   valide BOOLEAN NOT NULL DEFAULT FALSE,
   valide_at TIMESTAMP NULL,
   controle_qualite_ok BOOLEAN NOT NULL DEFAULT FALSE,
+  assigned_user VARCHAR(150) NULL,
   UNIQUE KEY uniq_run_poste (run_id, poste_id),
   FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE,
   FOREIGN KEY (poste_id) REFERENCES workflow_postes(id) ON DELETE CASCADE
+);
+
+CREATE TABLE workflow_run_etapes (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  run_id INT NOT NULL,
+  etape_id INT NOT NULL,
+  valide BOOLEAN NOT NULL DEFAULT FALSE,
+  valide_at TIMESTAMP NULL,
+  UNIQUE KEY uniq_run_etape (run_id, etape_id),
+  FOREIGN KEY (run_id) REFERENCES workflow_runs(id) ON DELETE CASCADE,
+  FOREIGN KEY (etape_id) REFERENCES workflow_etapes(id) ON DELETE CASCADE
 );
 
 INSERT INTO workflow_postes
