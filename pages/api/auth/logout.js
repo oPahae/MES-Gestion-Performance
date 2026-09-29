@@ -2,8 +2,7 @@ import { serialize } from "cookie";
 
 export default function handler(req, res) {
   const isMobile = req.query || false;
-  console.log(req.query)
-  console.log(isMobile)
+  return res.status(200).json({ req: req.query, is: isMobile })
   if (req.method === "GET" || req.method === "POST") {
     // res.setHeader(
     //   "Set-Cookie",
