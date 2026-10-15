@@ -1,0 +1,24 @@
+{
+  "name": "mesperformance",
+  "version": "1.0.0",
+  "description": "MES Performance Desktop",
+  "main": "main.js",
+  "author": "Bahaa",
+  "license": "MIT",
+  "scripts": {
+    "start": "electron .",
+    "build": "electron-builder"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.pahae.mesperformance",
+    "productName": "MES Performance",
+    "win": {
+      "target": "nsis",
+      "icon": "favicon.ico"
+    }
+  }
+}
